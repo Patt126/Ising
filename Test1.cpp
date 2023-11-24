@@ -5,49 +5,12 @@
 #include <iostream>
 
 
-#define L 25
+#define L 100
 #define N (L*L)
-#define XNN 1
-#define YNN 1
-#define beta 0.417
+#define T 2.4
+#define beta (1/T)
 #define J 1.00
 
-
-
-void sweep()
-{
-	double prob[5];
-	int s[N];
-	int i, k;
-	int nn, sum, delta;
-	float DE1, DE2;
-	DE1 = 4 * J;
-	DE2 = 8 * J;
-	for (k = 0; k < N; k++) {
-		/* Choose a site */
-		i = rand() % N;
-		printf("%d\n", i);
-		/* Calculate the sum of the neighbouring spins */
-		if ((nn = i + 1) >= N) nn -= N;
-
-		sum = s[nn];
-		if ((nn = i - 1) < 0) nn += N;
-		sum += s[nn];
-		if ((nn = i + 1) >= N) nn -= N;
-		sum += s[nn];
-		if ((nn = i - 1) < 0) nn += N;
-		sum += s[nn];
-		/* Calculate the change in energy */
-		delta = sum * s[i];
-		/* Decide whether to flip spin */
-		if (delta <= 0) {
-			s[i] = -s[i];
-		}
-		else if (rand() < prob[delta]) {
-			s[i] = -s[i];
-		}
-	}
-}
 
 int flip(std::vector < std::vector<int> >& matrix, float DE1, float DE2) {
 
@@ -81,25 +44,36 @@ int flip(std::vector < std::vector<int> >& matrix, float DE1, float DE2) {
 	else {
 		sum += matrix[r][c + 1];
 	}
-
-	if (sum <= 0) {
+    int delta = 2*J*sum*matrix[r][c];
+	if (delta <= 0) {
+        //std::cout<<"neg ";
 		matrix[r][c] = -matrix[r][c];
 	}
-	else if (sum == 2) {
-		if (rand() / RAND_MAX < exp(-DE1 * beta)) {
+	else if (delta == 4*J) {
+        float rnd = (rand() % 10000)/1e4;
+		if (rnd < exp(-DE1 * beta)) {
 			matrix[r][c] = -matrix[r][c];
 		}
+        else{
+            return 0;
+        }
 	}
-	else {
-		if (rand() / RAND_MAX < exp(-DE2 * beta)) {
+	else if (delta==8*J){
+        float rnd = (rand() % 10000)/1e4;
+		if (rnd < exp(-DE2 * beta)) {
 			matrix[r][c] = -matrix[r][c];
 		}
+        else{
+            return 0;
+        }
 	}
-	return sum;
+
+	return delta;
 }
 
-void initialize_matrix(std::vector < std::vector<int> >& matrix) {
-	int k;
+float initialize_lattice(std::vector < std::vector<int> >& matrix) {
+	int k,m=0;
+    int energy = 0;
 	int size = L;
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < size; j++) {
@@ -108,29 +82,44 @@ void initialize_matrix(std::vector < std::vector<int> >& matrix) {
 				matrix[i][j] = -1;
 			}
 			else {
-				matrix[i][j] = -1;
+				matrix[i][j] = 1;
 			}
+            //energy contibute
+            if (i != 0) {
+                energy += matrix[i - 1][j]*matrix[i][j]*2;
+            }
+            if (j != 0) {
+                energy += matrix[i][j-1]*matrix[i][j]*2;
+            }
+
+            if(i == L - 1) {
+                energy += matrix[0][j]*matrix[i][j]*2; //times 2 two count also contribute where i = 0
+            }
+            if(j == L - 1) {
+                energy += matrix[i][0]*matrix[i][j]*2;
+            }
+            }
 		}
+    std::cout<<std::endl<<energy<<' ';
+    return -J*energy;
 	}
 
-}
+
 
 void print_lattice(std::vector < std::vector<int> >& matrix) {
 
-	int i, j;
-	for (i = 0; i < L; i++) {
-		std::cout << std::endl;
-		for (j = 0; j < L; j++) {
-			if (matrix[i][j] == -1) {
-				std::cout << "o" << " ";
-			}
-			else {
-				std::cout << "x" << " ";
+    int i, j;
+    for (i = 0; i < L; i++) {
+        std::cout << std::endl;
+        for (j = 0; j < L; j++) {
+            if (matrix[i][j] == -1) {
+                std::cout << "o" << " ";
+            } else {
+                std::cout << "x" << " ";
 
-			}
-		}
-	}
-	return;
+            }
+        }
+    }
 }
 
 
@@ -141,29 +130,30 @@ void print_lattice(std::vector < std::vector<int> >& matrix) {
 int main() {
 
 	using namespace std;
-	vector<vector<int>> lattice(L, vector<int>(L));
-	initialize_matrix(lattice);
+	vector<vector<int> > lattice(L, vector<int>(L));
+	float energy = initialize_lattice(lattice);
 	float prob1, prob2;
 	float DE1 = 4 * J;
 	float DE2 = 8 * J;
-	print_lattice(lattice);
-	int i;
-	vector<float> energy_vec = { -L * L * J };
-	vector<int> x_axis = { 0 };
-	float temp =  0;
-	for (i = 0; i < 1e6; i++) {
-		temp = energy_vec.back();
-		energy_vec.push_back(temp + flip(lattice, DE1, DE2));
-		x_axis.push_back(i);
+	vector<float> energy_vec(1);
+    energy_vec[0] =  energy;
+	vector<int> t_axis(1);
+    t_axis[0] = 0;
 
-		if (i % 1000 == 0) {
-			cout << energy_vec.back() << endl;
+    cout << energy << endl;
+	for (int i = 0; i < 6*1e7; i++){
+		energy += flip(lattice, DE1, DE2);
+        if (i % N == 0) {
+            // aggiornare l'energia ogni N step (definizione di tempo nel metropolis come da libro)
+           cout << energy << endl;
+            energy_vec.push_back(energy_vec.back() + energy);
+            t_axis.push_back(i/N);
+
 		}
 	}
 
 
-	cout<< endl;
-	print_lattice(lattice);
+
 
 
 	return 0;
