@@ -12,7 +12,7 @@
 #define J 1.00
 
 
-int flip(std::vector < std::vector<int> >& matrix, float DE1, float DE2) {
+int flip(std::vector < std::vector<int> >& matrix, std::vector<float>& prob) {
 
 	int r, c;
 	r = rand() % L;
@@ -44,23 +44,23 @@ int flip(std::vector < std::vector<int> >& matrix, float DE1, float DE2) {
 	else {
 		sum += matrix[r][c + 1];
 	}
-    int delta = 2*J*sum*matrix[r][c];
+    int delta = 2*sum*matrix[r][c];
 	if (delta <= 0) {
         //std::cout<<"neg ";
 		matrix[r][c] = -matrix[r][c];
 	}
-	else if (delta == 4*J) {
+	else if (delta == 4) {
         float rnd = (rand() % 10000)/1e4;
-		if (rnd < exp(-DE1 * beta)) {
+		if (rnd < prob[0] ){
 			matrix[r][c] = -matrix[r][c];
 		}
         else{
             return 0;
         }
 	}
-	else if (delta==8*J){
+	else if (delta==8){
         float rnd = (rand() % 10000)/1e4;
-		if (rnd < exp(-DE2 * beta)) {
+		if (rnd < prob[1]) {
 			matrix[r][c] = -matrix[r][c];
 		}
         else{
@@ -68,7 +68,7 @@ int flip(std::vector < std::vector<int> >& matrix, float DE1, float DE2) {
         }
 	}
 
-	return delta;
+	return delta*J;
 }
 
 float initialize_lattice(std::vector < std::vector<int> >& matrix) {
@@ -132,9 +132,9 @@ int main() {
 	using namespace std;
 	vector<vector<int> > lattice(L, vector<int>(L));
 	float energy = initialize_lattice(lattice);
-	float prob1, prob2;
-	float DE1 = 4 * J;
-	float DE2 = 8 * J;
+    vector<float> prob(2);
+	prob[0] = exp(-4 * J*beta);
+    prob[1] = exp(-8 * J*beta);
 	vector<float> energy_vec(1);
     energy_vec[0] =  energy;
 	vector<int> t_axis(1);
@@ -142,7 +142,7 @@ int main() {
 
     cout << energy << endl;
 	for (int i = 0; i < 6*1e7; i++){
-		energy += flip(lattice, DE1, DE2);
+		energy += flip(lattice, prob);
         if (i % N == 0) {
             // aggiornare l'energia ogni N step (definizione di tempo nel metropolis come da libro)
            cout << energy << endl;
