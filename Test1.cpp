@@ -9,10 +9,11 @@
 
 
 
-#define L 100
+#define L 300
 #define N (L*L)
 #define J 1.00
-#define IT 6*1e7 //number of iterations
+#define IT 5e8 //number of iterations
+#define NTHREADS 12
 
 void print_lattice(std::vector < std::vector<int> >& matrix) {
 
@@ -203,7 +204,7 @@ void create_rand_vect(std::vector<std::tuple<int, int>>& rand_vect_0) {
 
 void create_rand_vect_parallel(std::vector<std::tuple<int, int>>& rand_vect_0) {
     int i;
-    #   pragma omp parallel for 12
+    #   pragma omp parallel for  NTHREADS 
     for (i = 1; i < IT; i++) {
         rand_vect_0.push_back(std::make_tuple(rand() % L, rand() % L));
     }
@@ -224,7 +225,7 @@ float simulate_parallel(float T, std::vector < std::vector<int> >& lattice, floa
     vector<int> t_axis(1);
     t_axis[0] = 0;
     int i;
-#   pragma omp parallel for 12
+#   pragma omp parallel for  NTHREADS 12
     for (i = 1; i < IT; i++) {
         flip(lattice, prob, energy, M, std::get<0>(rand_vect[i]), std::get<1>(rand_vect[i]));
         if (i % N == 0) {
@@ -254,7 +255,7 @@ int main() {
     results[0] = 1;
     std::vector<std::tuple<int, int>> rand_vect(1);
     rand_vect[0] = make_tuple(rand()%L, rand()%L);
-    create_rand_vect(rand_vect);
+    create_rand_vect_parallel(rand_vect);
 
     while (T <= 3.5) {
         results.push_back(simulate_parallel(T, lattice, energy, M,rand_vect));
