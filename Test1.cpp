@@ -165,18 +165,15 @@ int write_file(std::vector<float>& energy_vec, std::vector<float>& m, std::vecto
 
 
 
-float simulate(float T,std::vector < std::vector<int> >& lattice, float& energy_init, int& M_init) {
+float simulate(float T,std::vector < std::vector<int> >& lattice, float& energy, int& M) {
 
 	using namespace std;
-    float beta = 1/T;
     vector<float> prob(2);
-	prob[0] = exp(-4 * J*beta);
-    prob[1] = exp(-8 * J*beta);
-    float energy = energy_init;
-    int M = M_init;
+	prob[0] = exp(-4 * J/T);
+    prob[1] = exp(-8 * J/T);
 
 	vector<float> energy_vec(1);
-    energy_vec[0] =  energy_init;
+    energy_vec[0] =  energy;
 
     vector<float> m(1);
     m[0] = (float)M/N;
@@ -203,13 +200,13 @@ int main() {
     float energy = 0;
     int M =0;
     initialize_lattice(lattice,energy,M);
-    float T = 0;
+    float T = 0.1;
     vector<float> results (1);
     results[0] = 1;
-    while(T<5){
+    while(T<=3.5){
         results.push_back(simulate(T,lattice,energy,M));
         T += 0.1;
-        cout<<results.back()<<' '<<endl;
+        cout<<abs(results.back())<<endl;
     }
 
 
