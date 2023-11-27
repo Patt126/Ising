@@ -4,6 +4,8 @@
 #include <iostream>
 #include<fstream>
 #include<tuple>
+#include<ctime>
+#include <omp.h>
 
 
 
@@ -199,10 +201,49 @@ void create_rand_vect(std::vector<std::tuple<int, int>>& rand_vect_0) {
     }
 }
 
+void create_rand_vect_parallel(std::vector<std::tuple<int, int>>& rand_vect_0) {
+    int i;
+    #   pragma omp parallel for 12
+    for (i = 1; i < IT; i++) {
+        rand_vect_0.push_back(std::make_tuple(rand() % L, rand() % L));
+    }
+}
+
+float simulate_parallel(float T, std::vector < std::vector<int> >& lattice, float& energy, int& M, std::vector<std::tuple<int, int>>& rand_vect) {
+
+    using namespace std;
+    vector<float> prob(2);
+    prob[0] = exp(-4 * J / T);
+    prob[1] = exp(-8 * J / T);
+
+    vector<float> energy_vec(1);
+    energy_vec[0] = energy;
+
+    vector<float> m(1);
+    m[0] = (float)M / N;
+    vector<int> t_axis(1);
+    t_axis[0] = 0;
+    int i;
+#   pragma omp parallel for 12
+    for (i = 1; i < IT; i++) {
+        flip(lattice, prob, energy, M, std::get<0>(rand_vect[i]), std::get<1>(rand_vect[i]));
+        if (i % N == 0) {
+            // aggiornare l'energia e la magnetizzazione ogni N step (definizione di tempo nel metropolis come da libro)
+            m.push_back((float)M / N); // magnetizzazione media per sito
+            energy_vec.push_back(energy);
+            t_axis.push_back(i / N);
+
+        }
+    }
+    return m.back();
+}
+
 
 
 
 int main() {
+    unsigned seed = time(0);
+    srand(seed);
     using namespace std;
     vector<vector<int> > lattice(L, vector<int>(L));
     float energy = 0;
@@ -216,7 +257,7 @@ int main() {
     create_rand_vect(rand_vect);
 
     while (T <= 3.5) {
-        results.push_back(simulate(T, lattice, energy, M,rand_vect));
+        results.push_back(simulate_parallel(T, lattice, energy, M,rand_vect));
         T += 0.1;
         cout << abs(results.back()) << endl;
     }
