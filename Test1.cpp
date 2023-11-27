@@ -8,8 +8,6 @@
 
 #define L 100
 #define N (L*L)
-#define T 0.01
-#define beta (1/T)
 #define J 1.00
 #define IT 6*1e7 //number of iterations
 
@@ -157,7 +155,7 @@ int write_file(std::vector<float>& energy_vec, std::vector<float>& m, std::vecto
     if (myfile.is_open())
     {
         for(int i = 0; i < t.size(); i ++){
-            myfile << energy_vec[i] << " "<<m[i]<<' '<<t[i]<<'\n';
+            myfile << energy_vec[i] << " "<<abs(m[i])<<' '<<t[i]<<'\n';
         }
         myfile.close();
     }
@@ -167,28 +165,23 @@ int write_file(std::vector<float>& energy_vec, std::vector<float>& m, std::vecto
 
 
 
-int main() {
+float simulate(float T,std::vector < std::vector<int> >& lattice, float& energy_init, int& M_init) {
 
 	using namespace std;
-	vector<vector<int> > lattice(L, vector<int>(L));
-	float energy = 0;
-    int M =0;
-    initialize_lattice(lattice,energy,M);
-
+    float beta = 1/T;
     vector<float> prob(2);
 	prob[0] = exp(-4 * J*beta);
     prob[1] = exp(-8 * J*beta);
+    float energy = energy_init;
+    int M = M_init;
 
 	vector<float> energy_vec(1);
-    energy_vec[0] =  energy;
+    energy_vec[0] =  energy_init;
 
     vector<float> m(1);
     m[0] = (float)M/N;
-
 	vector<int> t_axis(1);
     t_axis[0] = 0;
-    print_lattice(lattice);
-    cout<<endl;
 	for (int i = 1; i < IT; i++){
 		flip(lattice, prob, energy, M);
         if (i % N == 0) {
@@ -198,12 +191,30 @@ int main() {
             t_axis.push_back(i / N);
 
         }
+
 	}
+    return m.back();
+}
 
-    write_file(energy_vec,m,t_axis);
-    print_lattice(lattice);
+
+int main() {
+    using namespace std;
+    vector<vector<int> > lattice(L, vector<int>(L));
+    float energy = 0;
+    int M =0;
+    initialize_lattice(lattice,energy,M);
+    float T = 0;
+    vector<float> results (1);
+    results[0] = 1;
+    while(T<5){
+        results.push_back(simulate(T,lattice,energy,M));
+        T += 0.1;
+        cout<<results.back()<<' '<<endl;
+    }
 
 
-	return 0;
+
+    return 0;
+
 }
 
