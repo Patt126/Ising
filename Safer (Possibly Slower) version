@@ -10,6 +10,7 @@
 #include <random>
 
 // The output is wrong,even though it compiles and run. The time for each iteration 100*100 is around 90 seconds.
+// It must be tested. I have no idea of the functioning of some of the things I implemented here, a bit too much of copy paste.
 
 
 
