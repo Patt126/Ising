@@ -6,6 +6,8 @@
 #include<tuple>
 #include<ctime>
 #include <omp.h>
+#include <chrono>
+
 
 
 
@@ -258,9 +260,17 @@ int main() {
     create_rand_vect_parallel(rand_vect);
 
     while (T <= 3.5) {
-        results.push_back(simulate_parallel(T, lattice, energy, M,rand_vect));
-        T += 0.1;
-        cout << abs(results.back()) << endl;
+    auto start = std::chrono::high_resolution_clock::now();  // Start timing before simulation
+
+    results.push_back(simulate_parallel(T, lattice, energy, M, rand_vect));
+
+    auto end = std::chrono::high_resolution_clock::now();  // End timing after simulation
+    std::chrono::duration<double> elapsed = end - start;  // Calculate elapsed time
+
+    T += 0.1;
+
+    cout << "Time taken for simulation at temperature " << T << ": " << elapsed.count() << " seconds" << endl;
+    cout << abs(results.back()) << endl;
     }
 
 
