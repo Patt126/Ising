@@ -1,7 +1,7 @@
 # MonteCarlo23-24-Marini-Patricelli-Pagani
 # Ising Model Simulation in C++
 
-This project is an implementation of the Ising model simulation using C++. It aims to model magnetic dipole moments of atomic "spins" on a lattice that are either in one of two states (+1 or -1). The spins are arranged in a grid, and the model can simulate phase transitions for ferromagnetic materials. Parallel computing techniques with OpenMP are used to accelerate the simulation.
+This project is an implementation of the Ising model simulation using C++. It aims to model magnetic dipole moments of atomic "spins" on a lattice that are either in one of two states (+1 or -1). The spins are arranged in a grid, and the model can simulate phase transitions. Parallel computing techniques with OpenMP are used to accelerate the simulation.
 
 ## Features
 
