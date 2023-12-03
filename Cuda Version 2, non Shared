@@ -3,7 +3,7 @@
 #include <curand_kernel.h>
 
 // Define lattice dimensions and other constants
-const int L = 256; // Lattice size (LxL)
+const int L = 512; // Lattice size (LxL)
 const int N = L * L;
 const float J = 1.0f;
 const float beta = 1.0f; // Inverse temperature
@@ -69,7 +69,7 @@ int main() {
     cudaMemcpy(d_lattice, h_lattice, N * sizeof(int), cudaMemcpyHostToDevice);
 
     // Set up the RNG states
-    setupRandStates<<<blocks, threads>>>(d_states, time(NULL));
+    setupRandStates << <blocks, threads >> > (d_states, time(NULL));
 
     // Create CUDA event objects for timing
     cudaEvent_t start, stop;
@@ -83,8 +83,8 @@ int main() {
         // Record the start event
         cudaEventRecord(start);
 
-        for (int iter = 0; iter < 1e2; iter++) {
-            updateSpins<<<blocks, threads>>>(d_lattice, d_states, iter % 2, beta);
+        for (int iter = 0; iter < 1e4; iter++) {
+            updateSpins << <blocks, threads >> > (d_lattice, d_states, iter % 2, beta);
         }
 
         // Record the stop event and wait for it to complete
@@ -116,4 +116,3 @@ int main() {
 
     return 0;
 }
-
