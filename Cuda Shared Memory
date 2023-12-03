@@ -96,7 +96,7 @@ int main() {
     cudaEventCreate(&stop);
 
     // Run Monte Carlo simulation for each t from 2 to 0.2
-    for (float t = 2.0f; t >= 0.2f; t -= 0.1f) {
+    for (float t = 0.1f; t <= 3.0f; t += 0.1f) {
         float beta = 1.0f / t; // Compute beta as the inverse of temperature t
 
         cudaEventRecord(start);
