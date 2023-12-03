@@ -61,35 +61,59 @@ int main() {
     dim3 blocks(L / 16, L / 16);
     dim3 threads(16, 16);
 
-    // Initialize spins on the lattice (could be random or predefined pattern)
-    // For simplicity, all spins set to 1
+    // Initialize spins on the lattice
     int* h_lattice = new int[N];
     for (int i = 0; i < N; i++) {
-        h_lattice[i] = 1;
+        h_lattice[i] = 1; // All spins set to 1
     }
     cudaMemcpy(d_lattice, h_lattice, N * sizeof(int), cudaMemcpyHostToDevice);
 
     // Set up the RNG states
-    setupRandStates << <blocks, threads >> > (d_states, time(NULL));
+    setupRandStates<<<blocks, threads>>>(d_states, time(NULL));
+
+    // Create CUDA event objects for timing
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
 
     // Main loop to carry out the Monte Carlo simulation
-    for (int iter = 0; iter < 1e2; iter++) {
-        updateSpins << <blocks, threads >> > (d_lattice, d_states, iter % 2, beta); // Pass beta as an argument
-    }
+    for (float T = 0.2f; T <= 3.0f; T += 0.1f) {
+        float beta = 1.0f / T;
 
-    // Copy the lattice back to the host and compute magnetization
-    cudaMemcpy(h_lattice, d_lattice, N * sizeof(int), cudaMemcpyDeviceToHost);
-    int magnetization = 0;
-    for (int i = 0; i < N; i++) {
-        magnetization += h_lattice[i];
+        // Record the start event
+        cudaEventRecord(start);
+
+        for (int iter = 0; iter < 1e2; iter++) {
+            updateSpins<<<blocks, threads>>>(d_lattice, d_states, iter % 2, beta);
+        }
+
+        // Record the stop event and wait for it to complete
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+
+        // Calculate elapsed time
+        float milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, start, stop);
+
+        // Copy the lattice back to the host and compute magnetization
+        cudaMemcpy(h_lattice, d_lattice, N * sizeof(int), cudaMemcpyDeviceToHost);
+        int magnetization = 0;
+        for (int i = 0; i < N; i++) {
+            magnetization += h_lattice[i];
+        }
+        float magnetization_per_site = static_cast<float>(magnetization) / N;
+
+        // Print temperature, magnetization per site, and elapsed time
+        std::cout << "Temperature: " << T << ", Magnetization per site: " << magnetization_per_site << ", Time: " << milliseconds << " ms" << std::endl;
     }
-    float magnetization_per_site = static_cast<float>(magnetization) / N;
-    std::cout << "Final magnetization per site: " << magnetization_per_site << std::endl;
 
     // Clean up resources
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
     cudaFree(d_lattice);
     cudaFree(d_states);
     delete[] h_lattice;
 
     return 0;
 }
+
