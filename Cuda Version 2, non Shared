@@ -1,0 +1,95 @@
+#include <iostream>
+#include <curand.h>
+#include <curand_kernel.h>
+
+// Define lattice dimensions and other constants
+const int L = 256; // Lattice size (LxL)
+const int N = L * L;
+const float J = 1.0f;
+const float beta = 0.4f; // Inverse temperature
+
+// The kernel for updating a single spin
+__global__ void updateSpins(int* lattice, curandState* state, int color, float beta) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if ((x < L) && (y < L)) {
+        int site = y * L + x;
+        if ((x + y) % 2 == color) { // Check color (checkerboard pattern)
+            // Calculate the site index of the 4 neighbors
+            int left = site - 1;
+            int right = site + 1;
+            int up = site - L;
+            int down = site + L;
+
+            // Handle periodic boundary conditions
+            if (x == 0) left += L;
+            if (x == L - 1) right -= L;
+            if (y == 0) up += N;
+            if (y == L - 1) down -= N;
+
+            // Calculate energy difference if this spin is flipped
+            int dE = 2 * lattice[site] * (lattice[left] + lattice[right] + lattice[up] + lattice[down]);
+            float r = curand_uniform(&state[site]);
+
+            // Metropolis criterion
+            if (dE <= 0 || r < expf(-beta * dE)) {
+                lattice[site] *= -1;
+            }
+        }
+    }
+}
+
+// Initialize CURAND states for each thread
+__global__ void setupRandStates(curandState* state, unsigned long seed) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int site = y * L + x;
+    if (x < L && y < L) {
+        curand_init(seed, site, 0, &state[site]);
+    }
+}
+
+int main() {
+    int* d_lattice;
+    curandState* d_states;
+
+    // Allocate memory on the device for lattice and states
+    cudaMalloc(&d_lattice, N * sizeof(int));
+    cudaMalloc(&d_states, N * sizeof(curandState));
+
+    // Set up kernel launch parameters
+    dim3 blocks(L / 16, L / 16);
+    dim3 threads(16, 16);
+
+    // Initialize spins on the lattice (could be random or predefined pattern)
+    // For simplicity, all spins set to 1
+    int* h_lattice = new int[N];
+    for (int i = 0; i < N; i++) {
+        h_lattice[i] = 1;
+    }
+    cudaMemcpy(d_lattice, h_lattice, N * sizeof(int), cudaMemcpyHostToDevice);
+
+    // Set up the RNG states
+    setupRandStates << <blocks, threads >> > (d_states, time(NULL));
+
+    // Main loop to carry out the Monte Carlo simulation
+    for (int iter = 0; iter < 1e2; iter++) {
+        updateSpins << <blocks, threads >> > (d_lattice, d_states, iter % 2, beta); // Pass beta as an argument
+    }
+
+    // Copy the lattice back to the host and compute magnetization
+    cudaMemcpy(h_lattice, d_lattice, N * sizeof(int), cudaMemcpyDeviceToHost);
+    int magnetization = 0;
+    for (int i = 0; i < N; i++) {
+        magnetization += h_lattice[i];
+    }
+    float magnetization_per_site = static_cast<float>(magnetization) / N;
+    std::cout << "Final magnetization per site: " << magnetization_per_site << std::endl;
+
+    // Clean up resources
+    cudaFree(d_lattice);
+    cudaFree(d_states);
+    delete[] h_lattice;
+
+    return 0;
+}
