@@ -5,104 +5,48 @@
 #include <cmath>
 #include <ctime>
 
-#define L 50
+#define L 100
 #define N (L*L)
 #define J 1.00
 #define IT 5e8 // Number of iterations, should be divisible by 2 for even updates
 #define NTHREADS 256 // Number of GPU threads
-#define BLOCK_WIDTH 16 // Define the width of the block.
-#define BLOCK_HEIGHT 16 // Define the height of the block.
-#define HALO 1 // Define the size of the halo.
 
-__device__ int get_global_idx(int row, int col) {
-    return (row * L + col) % N; // Assuming L and N are defined for the lattice size.
+__device__ int get_index(int row, int col) {
+    return (row * L + col) % N;
 }
 
-__device__ int get_shared_index(int r, int c) {
-    return (r + HALO) * (BLOCK_WIDTH + 2 * HALO) + (c + HALO);
+// The lattice uses boolean values, true for spin up (equivalent to 1) and false for spin down (equivalent to -1)
+__device__ int delta_energy(bool* lattice, int r, int c) {
+    int sum = lattice[get_index((r - 1 + L) % L, c)]
+        + lattice[get_index((r + 1) % L, c)]
+        + lattice[get_index(r, (c - 1 + L) % L)]
+        + lattice[get_index(r, (c + 1) % L)];
+    sum = 2 * sum - 4; // Convert sum from [0, 4] to [-4, 4] to match the original spin values
+    int spin = lattice[get_index(r, c)] ? 1 : -1; // Convert bool to equivalent spin value
+    return 2 * spin * sum;
 }
 
-// Kernel to update the spins with shared memory.
 __global__ void flip_spins(bool* lattice, float* prob, float* energy, int* M, curandState* states, bool update_black) {
-    __shared__ bool shared_lattice[(BLOCK_WIDTH + 2 * HALO) * (BLOCK_WIDTH + 2 * HALO)];
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= N) return;
 
-    int tx = threadIdx.x;
-    int ty = threadIdx.y;
-    int bx = blockIdx.x * (BLOCK_WIDTH - 2 * HALO);
-    int by = blockIdx.y * (BLOCK_WIDTH - 2 * HALO);
-    int global_x = bx + tx;
-    int global_y = by + ty;
-    int idx = get_global_idx(global_y, global_x);
-    int local_idx = get_shared_index(ty, tx);
+    int r = idx / L;
+    int c = idx % L;
+    bool is_black = ((r + c) % 2 == 0);
 
-    // Load block interior
-    shared_lattice[local_idx] = lattice[idx];
+    if (is_black == update_black) {
+        int delta = delta_energy(lattice, r, c);
+        float rnd = curand_uniform(&states[idx]);
 
-    // Load top halo
-    if (ty < HALO) {
-        int halo_idx = get_global_idx(global_y - HALO, global_x);
-        shared_lattice[get_shared_index(ty - HALO, tx)] = lattice[halo_idx];
-    }
-
-    // Load bottom halo
-    if (ty >= BLOCK_WIDTH - HALO) {
-        int halo_idx = get_global_idx(global_y + HALO, global_x);
-        shared_lattice[get_shared_index(ty + HALO, tx)] = lattice[halo_idx];
-    }
-
-    // Load left halo
-    if (tx < HALO) {
-        int halo_idx = get_global_idx(global_y, global_x - HALO);
-        shared_lattice[get_shared_index(ty, tx - HALO)] = lattice[halo_idx];
-    }
-
-    // Load right halo
-    if (tx >= BLOCK_WIDTH - HALO) {
-        int halo_idx = get_global_idx(global_y, global_x + HALO);
-        shared_lattice[get_shared_index(ty, tx + HALO)] = lattice[halo_idx];
-    }
-
-    // Synchronize to ensure all threads have loaded their data into shared memory
-    __syncthreads();
-
-    if ((global_x < L) && (global_y < L)) {
-        int updated_spin;
-
-        // Only threads that need to flip spins based on update_black value
-        bool is_black = ((global_x + global_y) % 2 == 0);
-        if (is_black == update_black) {
-            // Calculate sum of the neighboring spins
-            int sum = 0;
-            sum += shared_lattice[get_shared_index(ty - 1, tx)]; // Above
-            sum += shared_lattice[get_shared_index(ty + 1, tx)]; // Below
-            sum += shared_lattice[get_shared_index(ty, tx - 1)]; // Left
-            sum += shared_lattice[get_shared_index(ty, tx + 1)]; // Right
-
-            // Transform sum from the number of trues to spin sum
-            sum = 2 * sum - 4; // Adjust the sum from [0,4] to [-4,4]
-
-            // Determine the current spin (true=1, false=-1)
-            bool current_spin = shared_lattice[local_idx];
-            int spin_value = (current_spin ? 1 : -1);
-
-            // Compute delta energy
-            int delta = 2 * spin_value * sum;
-
-            // Decide whether to flip the spin
-            float rnd = curand_uniform(&states[idx]);
-            if (delta <= 0 || rnd < prob[(abs(delta) / 4) - 1]) {
-                updated_spin = !current_spin;
-                lattice[idx] = updated_spin;
-
-                // Correct update for magnetization: Consider both old and new spin values.
-                atomicAdd(energy, delta * J);
-                // Correct update for magnetization: Consider only new spin value.
-                int magnetizationChange = (updated_spin ? 1 : -1);
-                atomicAdd(M, magnetizationChange);
-            }
+        if (delta <= 0 || (delta == 4 && rnd < prob[0]) || (delta == 8 && rnd < prob[1])) {
+            lattice[get_index(r, c)] = !lattice[get_index(r, c)];
+            atomicAdd(energy, delta * J);
+            int spin_change = lattice[get_index(r, c)] ? 2 : -2; // Convert bool to equivalent spin change
+            atomicAdd(M, spin_change);
         }
     }
 }
+
 
 __global__ void setup_rand_kernel(curandState* state, unsigned long seed) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -123,37 +67,31 @@ __global__ void initialize_lattice_kernel(bool* lattice, float* energy, int* M, 
 }
 int main() {
     bool* dev_lattice;
-    float* dev_probabilities;
-    float* dev_energy;
-    int* dev_M;
-    curandState* dev_states;
-
-    // Memory allocations (only one line for each variable)
     cudaMalloc((void**)&dev_lattice, N * sizeof(bool));
-    cudaMalloc((void**)&dev_states, N * sizeof(curandState));
-    cudaMalloc((void**)&dev_energy, sizeof(float));
-    cudaMalloc((void**)&dev_M, sizeof(int));
-    cudaMalloc((void**)&dev_probabilities, 2 * sizeof(float));
 
-    // Define grid and block sizes for kernels that do not use shared memory
-    dim3 blocksPerGridNonShared((N + NTHREADS - 1) / NTHREADS, 1, 1);
-    dim3 threadsPerBlockNonShared(NTHREADS, 1, 1);
+    curandState* dev_states;
+    cudaMalloc((void**)&dev_states, N * sizeof(curandState));
+
+    dim3 blocksPerGrid((N + NTHREADS - 1) / NTHREADS, 1, 1);
+    dim3 threadsPerBlock(NTHREADS, 1, 1);
 
     unsigned long seed = static_cast<unsigned long>(time(nullptr));
-    setup_rand_kernel << <blocksPerGridNonShared, threadsPerBlockNonShared >> > (dev_states, seed);
+    setup_rand_kernel << <blocksPerGrid, threadsPerBlock >> > (dev_states, seed);
+
+    float* dev_energy;
+    int* dev_M;
+    cudaMalloc((void**)&dev_energy, sizeof(float));
+    cudaMalloc((void**)&dev_M, sizeof(int));
 
     float energy = 0.0f;
     int M = 0;
     cudaMemcpy(dev_energy, &energy, sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(dev_M, &M, sizeof(int), cudaMemcpyHostToDevice);
 
-    initialize_lattice_kernel << <blocksPerGridNonShared, threadsPerBlockNonShared >> > (dev_lattice, dev_energy, dev_M, dev_states);
+    initialize_lattice_kernel << <blocksPerGrid, threadsPerBlock >> > (dev_lattice, dev_energy, dev_M, dev_states);
 
-    // Define grid and block sizes for the flip_spins kernel that uses shared memory
-    dim3 threadsPerBlock(BLOCK_WIDTH, BLOCK_HEIGHT);
-    dim3 blocksPerGrid((L + BLOCK_WIDTH - 2 * HALO - 1) / (BLOCK_WIDTH - 2 * HALO),
-        (L + BLOCK_HEIGHT - 2 * HALO - 1) / (BLOCK_HEIGHT - 2 * HALO));
-    size_t sharedMemSize = (BLOCK_WIDTH + 2 * HALO) * (BLOCK_HEIGHT + 2 * HALO) * sizeof(bool);
+    float* dev_probabilities;
+    cudaMalloc((void**)&dev_probabilities, 2 * sizeof(float));
 
     for (float T = 0.2f; T <= 3.0f; T += 0.1f) {
         clock_t start_time = clock();
@@ -161,28 +99,27 @@ int main() {
         float prob[2] = { exp(-4 * J / T), exp(-8 * J / T) };
         cudaMemcpy(dev_probabilities, prob, 2 * sizeof(float), cudaMemcpyHostToDevice);
 
+        // Ensure an even number of iterations for a complete Monte Carlo sweep.
         for (unsigned long i = 0; i < IT / N; i += 2) {
-            flip_spins << <blocksPerGrid, threadsPerBlock, sharedMemSize >> > (dev_lattice, dev_probabilities, dev_energy, dev_M, dev_states, true);
-            flip_spins << <blocksPerGrid, threadsPerBlock, sharedMemSize >> > (dev_lattice, dev_probabilities, dev_energy, dev_M, dev_states, false);
+            flip_spins << <blocksPerGrid, threadsPerBlock >> > (dev_lattice, dev_probabilities, dev_energy, dev_M, dev_states, true);
+            flip_spins << <blocksPerGrid, threadsPerBlock >> > (dev_lattice, dev_probabilities, dev_energy, dev_M, dev_states, false);
         }
 
         cudaDeviceSynchronize();
 
         clock_t end_time = clock();
 
-        // Synchronize and fetch the results of energy and magnetization back to host
+        double elapsed_secs = static_cast<double>(end_time - start_time) / CLOCKS_PER_SEC;
+
         cudaMemcpy(&energy, dev_energy, sizeof(float), cudaMemcpyDeviceToHost);
         cudaMemcpy(&M, dev_M, sizeof(int), cudaMemcpyDeviceToHost);
 
-        double elapsed_secs = static_cast<double>(end_time - start_time) / CLOCKS_PER_SEC;
-
         std::cout << "Temperature: " << T << std::endl;
-        std::cout << "Energy per site: " << energy / N << std::endl;
-        std::cout << "Magnetization per site: " << static_cast<float>(M) / N << std::endl;
+        std::cout << "Final Energy: " << energy / N << std::endl;
+        std::cout << "Final Magnetization: " << static_cast<float>(M) / N << std::endl;
         std::cout << "Simulation time (seconds): " << elapsed_secs << std::endl << std::endl;
     }
 
-    // Clean up and free device memory
     cudaFree(dev_lattice);
     cudaFree(dev_states);
     cudaFree(dev_energy);
