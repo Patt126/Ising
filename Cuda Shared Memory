@@ -90,9 +90,16 @@ int main() {
     // Setup RNG states
     setupStates << <blocks, threads >> > (d_states, time(0));
 
+    // Create CUDA events for timing
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
     // Run Monte Carlo simulation for each t from 2 to 0.2
-    for (float t = 0.2f; t <= 3.0f; t += 0.1f) {
+    for (float t = 2.0f; t >= 0.2f; t -= 0.1f) {
         float beta = 1.0f / t; // Compute beta as the inverse of temperature t
+
+        cudaEventRecord(start);
 
         // Reset lattice to all ones for each new temperature
         cudaMemcpy(d_lattice, h_lattice, N * sizeof(int), cudaMemcpyHostToDevice);
@@ -100,6 +107,11 @@ int main() {
         for (int iter = 0; iter < 1e4; ++iter) {
             metroIsing << <blocks, threads >> > (d_lattice, d_states, beta, iter % 2);
         }
+
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+        float milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, start, stop);
 
         // Retrieve final lattice state
         cudaMemcpy(h_lattice, d_lattice, N * sizeof(int), cudaMemcpyDeviceToHost);
@@ -110,8 +122,12 @@ int main() {
             mag += h_lattice[i];
         }
 
-        std::cout << "Temperature: " << t << ", Beta: " << beta << ", Final magnetization per site: " << static_cast<float>(mag) / N << std::endl;
+        std::cout << "Temperature: " << t << ", Final magnetization per site: " << static_cast<float>(mag) / N << ", Time: " << milliseconds << " ms" << std::endl;
     }
+
+    // Destroy CUDA events
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
 
     delete[] h_lattice;
     cudaFree(d_lattice);
