@@ -48,10 +48,31 @@ __global__ void setupRandStates(curandState* state, unsigned long seed) {
         curand_init(seed, site, 0, &state[site]);
     }
 }
+// The kernel for calculating the total energy of the lattice
+__global__ void computeEnergy(int* lattice, int* energy) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if ((x < L) && (y < L)) {
+        int site = y * L + x;
+
+        // Calculate the site index of the 4 neighbors
+        int right = (x == L - 1) ? site - (L - 1) : site + 1;
+        int down = (y == L - 1) ? site - (L - 1) * L : site + L;
+
+        // Compute the contribution of the current spin to the energy (each bond counted once)
+        int e = -lattice[site] * (lattice[right] + lattice[down]);
+
+        // Use atomicAdd to safely accumulate the total energy
+        atomicAdd(energy, e);
+    }
+}
 
 int main() {
     int* d_lattice;
     curandState* d_states;
+    int* d_energy;
+    cudaMalloc(&d_energy, sizeof(int));
+
 
     // Allocate memory on the device for lattice and states
     cudaMalloc(&d_lattice, N * sizeof(int));
@@ -76,9 +97,12 @@ int main() {
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
-    // Main loop to carry out the Monte Carlo simulation
     for (float T = 0.2f; T <= 3.0f; T += 0.1f) {
         float beta = 1.0f / T;
+
+        // Initialize energy to 0 for each temperature step
+        int initial_energy = 0;
+        cudaMemcpy(d_energy, &initial_energy, sizeof(int), cudaMemcpyHostToDevice);
 
         // Record the start event
         cudaEventRecord(start);
@@ -87,24 +111,37 @@ int main() {
             updateSpins << <blocks, threads >> > (d_lattice, d_states, iter % 2, beta);
         }
 
+        // After spin updates are done, compute the energy of the system
+        computeEnergy << <blocks, threads >> > (d_lattice, d_energy);
+
         // Record the stop event and wait for it to complete
         cudaEventRecord(stop);
         cudaEventSynchronize(stop);
 
-        // Calculate elapsed time
-        float milliseconds = 0;
-        cudaEventElapsedTime(&milliseconds, start, stop);
-
-        // Copy the lattice back to the host and compute magnetization
+        // Copy the lattice and energy back to the host to compute magnetization and retrieve energy
         cudaMemcpy(h_lattice, d_lattice, N * sizeof(int), cudaMemcpyDeviceToHost);
+        int host_energy;
+        cudaMemcpy(&host_energy, d_energy, sizeof(int), cudaMemcpyDeviceToHost);
+
+        // Calculate magnetization
         int magnetization = 0;
         for (int i = 0; i < N; i++) {
             magnetization += h_lattice[i];
         }
         float magnetization_per_site = static_cast<float>(magnetization) / N;
 
-        // Print temperature, magnetization per site, and elapsed time
-        std::cout << "Temperature: " << T << ", Magnetization per site: " << magnetization_per_site << ", Time: " << milliseconds << " ms" << std::endl;
+        // Calculate the energy per site
+        float energy_per_site = static_cast<float>(host_energy) / N;
+
+        // Calculate elapsed time
+        float milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, start, stop);
+
+        // Print temperature, magnetization per site, energy per site, and elapsed time
+        std::cout << "Temperature: " << T
+            << ", Magnetization per site: " << magnetization_per_site
+            << ", Energy per site: " << energy_per_site
+            << ", Time: " << milliseconds << " ms" << std::endl;
     }
 
     // Clean up resources
