@@ -90,21 +90,28 @@ int main() {
     // Setup RNG states
     setupStates << <blocks, threads >> > (d_states, time(0));
 
-    // Run Monte Carlo simulation
-    for (int iter = 0; iter < 1e4; ++iter) {
-        metroIsing << <blocks, threads >> > (d_lattice, d_states, beta, iter % 2);
+    // Run Monte Carlo simulation for each t from 2 to 0.2
+    for (float t = 0.2f; t <= 3.0f; t += 0.1f) {
+        float beta = 1.0f / t; // Compute beta as the inverse of temperature t
+
+        // Reset lattice to all ones for each new temperature
+        cudaMemcpy(d_lattice, h_lattice, N * sizeof(int), cudaMemcpyHostToDevice);
+
+        for (int iter = 0; iter < 1e4; ++iter) {
+            metroIsing << <blocks, threads >> > (d_lattice, d_states, beta, iter % 2);
+        }
+
+        // Retrieve final lattice state
+        cudaMemcpy(h_lattice, d_lattice, N * sizeof(int), cudaMemcpyDeviceToHost);
+
+        // Compute magnetization
+        int mag = 0;
+        for (int i = 0; i < N; ++i) {
+            mag += h_lattice[i];
+        }
+
+        std::cout << "Temperature: " << t << ", Beta: " << beta << ", Final magnetization per site: " << static_cast<float>(mag) / N << std::endl;
     }
-
-    // Retrieve final lattice state
-    cudaMemcpy(h_lattice, d_lattice, N * sizeof(int), cudaMemcpyDeviceToHost);
-
-    // Compute magnetization
-    int mag = 0;
-    for (int i = 0; i < N; ++i) {
-        mag += h_lattice[i];
-    }
-
-    std::cout << "Final magnetization per site: " << static_cast<float>(mag) / N << std::endl;
 
     delete[] h_lattice;
     cudaFree(d_lattice);
