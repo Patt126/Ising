@@ -5,7 +5,7 @@
 #include <cmath>
 #include <ctime>
 
-#define L 50
+#define L 100
 #define N (L*L)
 #define J 1.00
 #define IT 5e8 // Number of iterations, should be divisible by 2 for even updates
@@ -15,15 +15,18 @@ __device__ int get_index(int row, int col) {
     return (row * L + col) % N;
 }
 
-__device__ int delta_energy(int* lattice, int r, int c) {
+// The lattice uses boolean values, true for spin up (equivalent to 1) and false for spin down (equivalent to -1)
+__device__ int delta_energy(bool* lattice, int r, int c) {
     int sum = lattice[get_index((r - 1 + L) % L, c)]
         + lattice[get_index((r + 1) % L, c)]
         + lattice[get_index(r, (c - 1 + L) % L)]
         + lattice[get_index(r, (c + 1) % L)];
-    return 2 * lattice[get_index(r, c)] * sum;
+    sum = 2 * sum - 4; // Convert sum from [0, 4] to [-4, 4] to match the original spin values
+    int spin = lattice[get_index(r, c)] ? 1 : -1; // Convert bool to equivalent spin value
+    return 2 * spin * sum;
 }
 
-__global__ void flip_spins(int* lattice, float* prob, float* energy, int* M, curandState* states, bool update_black) {
+__global__ void flip_spins(bool* lattice, float* prob, float* energy, int* M, curandState* states, bool update_black) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= N) return;
 
@@ -36,12 +39,14 @@ __global__ void flip_spins(int* lattice, float* prob, float* energy, int* M, cur
         float rnd = curand_uniform(&states[idx]);
 
         if (delta <= 0 || (delta == 4 && rnd < prob[0]) || (delta == 8 && rnd < prob[1])) {
-            lattice[get_index(r, c)] *= -1;
+            lattice[get_index(r, c)] = !lattice[get_index(r, c)];
             atomicAdd(energy, delta * J);
-            atomicAdd(M, 2 * lattice[get_index(r, c)]);
+            int spin_change = lattice[get_index(r, c)] ? 2 : -2; // Convert bool to equivalent spin change
+            atomicAdd(M, spin_change);
         }
     }
 }
+
 
 __global__ void setup_rand_kernel(curandState* state, unsigned long seed) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -50,21 +55,19 @@ __global__ void setup_rand_kernel(curandState* state, unsigned long seed) {
     }
 }
 
-__global__ void initialize_lattice_kernel(int* lattice, float* energy, int* M, curandState* states) {
+__global__ void initialize_lattice_kernel(bool* lattice, float* energy, int* M, curandState* states) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < N) {
         float randVal = curand_uniform(&states[idx]);
-        lattice[idx] = (randVal < 0.5f) ? 1 : -1;
+        lattice[idx] = (randVal < 0.5f) ? true : false;
 
-        // As it's a random initialization, the magnetization effect should be "expected" to be zero.
-        // However, to be consistent, we'll calculate it.
-        atomicAdd(M, lattice[idx]);
+        // Calculate magnetization
+        atomicAdd(M, lattice[idx] ? 1 : -1);
     }
 }
-
 int main() {
-    int* dev_lattice;
-    cudaMalloc((void**)&dev_lattice, N * sizeof(int));
+    bool* dev_lattice;
+    cudaMalloc((void**)&dev_lattice, N * sizeof(bool));
 
     curandState* dev_states;
     cudaMalloc((void**)&dev_states, N * sizeof(curandState));
