@@ -6,7 +6,7 @@
 const int L = 256; // Lattice size (LxL)
 const int N = L * L;
 const float J = 1.0f;
-const float beta = 0.4f; // Inverse temperature
+const float beta = 1.0f; // Inverse temperature
 
 // The kernel for updating a single spin
 __global__ void updateSpins(int* lattice, curandState* state, int color, float beta) {
