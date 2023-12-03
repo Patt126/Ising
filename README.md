@@ -39,7 +39,7 @@ For the GPU-accelerated version with CUDA, use the nvcc compiler provided by the
 nvcc -std=c++17 -Xcompiler "-fopenmp" ising_simulation.cu -o ising_simulation
 ```
 
-Note that the `-Xcompiler` flag is used to pass OpenMP-related flags to the host compiler invoked by nvcc.
+Note that the `-Xcompiler` flag is used to pass OpenMP-related flags to the host compiler invoked by nvcc. At the moment there is no combination of CUDA and OpenMP though.
 
 **Running the Simulation**
 
