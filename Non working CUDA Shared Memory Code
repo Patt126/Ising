@@ -5,163 +5,144 @@
 #include <cmath>
 #include <ctime>
 
-#define L 100
+#define L 64
 #define N (L*L)
 #define J 1.00
-#define IT 5e8 // Number of iterations, should be divisible by 2 for even updates
-#define NTHREADS 256 // Number of GPU threads
-#define BLOCK_DIMX 16 // Adjust this to your desired block dimension X
-#define BLOCK_DIMY 16 // Adjust this to your desired block dimension Y
+#define IT 5e5
+#define NTHREADS 256
+#define BLOCK_DIM 16
+#define TCRIT 2.26918531421
 
 __device__ int get_index(int row, int col) {
     return (row * L + col) % N;
 }
 
-// The lattice uses boolean values, true for spin up (equivalent to 1) and false for spin down (equivalent to -1)
-__device__ int delta_energy(bool* lattice, int r, int c) {
-    int sum = lattice[get_index((r - 1 + L) % L, c)]
-        + lattice[get_index((r + 1) % L, c)]
-        + lattice[get_index(r, (c - 1 + L) % L)]
-        + lattice[get_index(r, (c + 1) % L)];
-    sum = 2 * sum - 4; // Convert sum from [0, 4] to [-4, 4] to match the original spin values
-    int spin = lattice[get_index(r, c)] ? 1 : -1; // Convert bool to equivalent spin value
+__device__ int delta_energy(bool* __restrict__ lattice, int r, int c, int lr, int lc, int block_dim) {
+    int sum = 0;
+
+    // Neighbor indices
+    int north = ((lr - 1 + block_dim) % block_dim) * block_dim + lc;
+    int south = ((lr + 1) % block_dim) * block_dim + lc;
+    int west = lr * block_dim + (lc - 1 + block_dim) % block_dim;
+    int east = lr * block_dim + (lc + 1) % block_dim;
+
+    // Read from shared memory
+    sum += lattice[north] + lattice[south] + lattice[west] + lattice[east];
+
+    // Convert sum from bool to [-4, 4]
+    sum = 2 * sum - 4;
+
+    // Current spin
+    int idx = lr * block_dim + lc;
+    int spin = lattice[idx] ? 1 : -1;
+
     return 2 * spin * sum;
 }
 
-__global__ void flip_spins_with_shared(bool* lattice, float* prob, float* energy, int* M, curandState* states, bool update_black) {
+__global__ void flip_spins(bool* __restrict__ lattice, float* __restrict__ prob, curandState* __restrict__ states, float* __restrict__ energy, int* __restrict__ M, bool update_black) {
     extern __shared__ bool shared_lattice[];
 
-    int globalIdxX = blockIdx.x * blockDim.x + threadIdx.x;
-    int globalIdxY = blockIdx.y * blockDim.y + threadIdx.y;
-    int threadId = threadIdx.y * blockDim.x + threadIdx.x;
-    int localIdxX = threadIdx.x + 1;
-    int localIdxY = threadIdx.y + 1;
+    int global_idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int r = global_idx / L;
+    int c = global_idx % L;
+    int lr = threadIdx.x / BLOCK_DIM;
+    int lc = threadIdx.x % BLOCK_DIM;
+    int local_idx = lr * BLOCK_DIM + lc;
+    bool is_black = ((r + c) % 2 == 0);
 
-    // Loading lattice data to shared memory including halo cells for neighbors
-    shared_lattice[threadId] = lattice[get_index(globalIdxY, globalIdxX)];
-
-    // Loading halo cells into shared memory
-    if (threadIdx.x == 0)
-        shared_lattice[threadId - 1] = lattice[get_index(globalIdxY, globalIdxX - 1)];
-    if (threadIdx.x == blockDim.x - 1)
-        shared_lattice[threadId + 1] = lattice[get_index(globalIdxY, globalIdxX + 1)];
-    if (threadIdx.y == 0)
-        shared_lattice[threadId - blockDim.x] = lattice[get_index(globalIdxY - 1, globalIdxX)];
-    if (threadIdx.y == blockDim.y - 1)
-        shared_lattice[threadId + blockDim.x] = lattice[get_index(globalIdxY + 1, globalIdxX)];
-
+    // Load spins into shared memory
+    shared_lattice[local_idx] = lattice[global_idx];
     __syncthreads();
 
-    if (globalIdxX >= L || globalIdxY >= L) return;
-
-    bool is_black = ((globalIdxY + globalIdxX) % 2 == 0);
-
     if (is_black == update_black) {
-        int localIdx = localIdxY * (BLOCK_DIMX + 2) + localIdxX;
-
-        // Compute the delta energy using the shared lattice
-        int sum = shared_lattice[localIdx - 1 - (BLOCK_DIMX + 2)]
-            + shared_lattice[localIdx + 1 - (BLOCK_DIMX + 2)]
-            + shared_lattice[localIdx - (BLOCK_DIMX + 2) - 1]
-            + shared_lattice[localIdx - (BLOCK_DIMX + 2) + 1];
-        sum = 2 * sum - 4;
-        int spin = shared_lattice[localIdx] ? 1 : -1;
-        int delta = 2 * spin * sum;
-
-        float rnd = curand_uniform(&states[globalIdxY * L + globalIdxX]);
+        int delta = delta_energy(shared_lattice, r, c, lr, lc, BLOCK_DIM);
+        float rnd = curand_uniform(&states[global_idx]);
 
         if (delta <= 0 || (delta == 4 && rnd < prob[0]) || (delta == 8 && rnd < prob[1])) {
-            shared_lattice[localIdx] = !shared_lattice[localIdx]; // Update shared memory
-            lattice[get_index(globalIdxY, globalIdxX)] = !lattice[get_index(globalIdxY, globalIdxX)]; // Update global memory
+            // Flip spin
+            shared_lattice[local_idx] = !shared_lattice[local_idx];
+            lattice[global_idx] = !lattice[global_idx];
+
+            // Important to atomic add to global memory, not shared memory
             atomicAdd(energy, delta * J);
-            int spin_change = shared_lattice[localIdx] ? 2 : -2;
-            atomicAdd(M, spin_change);
+            atomicAdd(M, 2 * (shared_lattice[local_idx] ? 1 : -1));
         }
     }
+    __syncthreads();
 }
 
-
-__global__ void setup_rand_kernel(curandState* state, unsigned long seed) {
+__global__ void setup_kernel(curandState* state, unsigned long seed) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < N) {
         curand_init(seed, idx, 0, &state[idx]);
     }
 }
 
-__global__ void initialize_lattice_kernel(bool* lattice, float* energy, int* M, curandState* states) {
+__global__ void initialize_lattice_kernel(bool* lattice, curandState* states, float* energy, int* M) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < N) {
-        float randVal = curand_uniform(&states[idx]);
-        lattice[idx] = (randVal < 0.5f) ? true : false;
+        lattice[idx] = curand_uniform(&states[idx]) > 0.5f;
 
         // Calculate magnetization
         atomicAdd(M, lattice[idx] ? 1 : -1);
     }
 }
+
 int main() {
     bool* dev_lattice;
-    cudaMalloc((void**)&dev_lattice, N * sizeof(bool));
-
-    curandState* dev_states;
-    cudaMalloc((void**)&dev_states, N * sizeof(curandState));
-
-    dim3 blocksPerGrid((N + NTHREADS - 1) / NTHREADS, 1, 1);
-    dim3 threadsPerBlock(NTHREADS, 1, 1);
-
-    unsigned long seed = static_cast<unsigned long>(time(nullptr));
-    setup_rand_kernel << <blocksPerGrid, threadsPerBlock >> > (dev_states, seed);
-
     float* dev_energy;
     int* dev_M;
-    cudaMalloc((void**)&dev_energy, sizeof(float));
-    cudaMalloc((void**)&dev_M, sizeof(int));
+    float* dev_prob;
+    curandState* dev_states;
 
-    float energy = 0.0f;
-    int M = 0;
-    cudaMemcpy(dev_energy, &energy, sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_M, &M, sizeof(int), cudaMemcpyHostToDevice);
+    dim3 blocks(N / NTHREADS);
+    dim3 threads(NTHREADS);
 
-    initialize_lattice_kernel << <blocksPerGrid, threadsPerBlock >> > (dev_lattice, dev_energy, dev_M, dev_states);
+    // Allocate memory
+    cudaMalloc(&dev_lattice, N * sizeof(bool));
+    cudaMalloc(&dev_energy, sizeof(float));
+    cudaMalloc(&dev_M, sizeof(int));
+    cudaMalloc(&dev_prob, 2 * sizeof(float));
+    cudaMalloc(&dev_states, N * sizeof(curandState));
 
-    float* dev_probabilities;
-    cudaMalloc((void**)&dev_probabilities, 2 * sizeof(float));
+    // Initialize RNG
+    setup_kernel << <blocks, threads >> > (dev_states, time(nullptr));
 
+    // Initialize lattice
+    initialize_lattice_kernel << <blocks, threads >> > (dev_lattice, dev_states, dev_energy, dev_M);
+
+    // Iterate over temperature
     for (float T = 0.2f; T <= 3.0f; T += 0.1f) {
-        clock_t start_time = clock();
+        float prob[2] = { exp(-4.0f * J / T), exp(-8.0f * J / T) };
 
-        float prob[2] = { exp(-4 * J / T), exp(-8 * J / T) };
-        cudaMemcpy(dev_probabilities, prob, 2 * sizeof(float), cudaMemcpyHostToDevice);
+        // Copy to device
+        cudaMemcpy(dev_prob, prob, 2 * sizeof(float), cudaMemcpyHostToDevice);
 
-        dim3 blockSize(BLOCK_DIMX, BLOCK_DIMY);
-        dim3 gridSize((L + blockSize.x - 1) / blockSize.x, (L + blockSize.y - 1) / blockSize.y);
-        int sharedMemSize = (BLOCK_DIMX + 2) * (BLOCK_DIMY + 2) * sizeof(bool); // Padding for halo
+        float energy;
+        int M;
 
-        // Ensure an even number of iterations for a complete Monte Carlo sweep.
-        for (unsigned long i = 0; i < IT / N; i += 2) {
-            flip_spins_with_shared << <gridSize, blockSize, sharedMemSize >> > (dev_lattice, dev_probabilities, dev_energy, dev_M, dev_states, true);
-            flip_spins_with_shared << <gridSize, blockSize, sharedMemSize >> > (dev_lattice, dev_probabilities, dev_energy, dev_M, dev_states, false);
+        // Monte Carlo simulation
+        for (int iter = 0; iter < IT; iter += 2) {
+            flip_spins << <blocks, threads, NTHREADS * sizeof(bool) >> > (dev_lattice, dev_prob, dev_states, dev_energy, dev_M, true);
+            flip_spins << <blocks, threads, NTHREADS * sizeof(bool) >> > (dev_lattice, dev_prob, dev_states, dev_energy, dev_M, false);
         }
 
-        cudaDeviceSynchronize();
-
-        clock_t end_time = clock();
-
-        double elapsed_secs = static_cast<double>(end_time - start_time) / CLOCKS_PER_SEC;
-
+        // Copy results to host
         cudaMemcpy(&energy, dev_energy, sizeof(float), cudaMemcpyDeviceToHost);
         cudaMemcpy(&M, dev_M, sizeof(int), cudaMemcpyDeviceToHost);
 
-        std::cout << "Temperature: " << T << std::endl;
-        std::cout << "Final Energy: " << energy / N << std::endl;
-        std::cout << "Final Magnetization: " << static_cast<float>(M) / N << std::endl;
-        std::cout << "Simulation time (seconds): " << elapsed_secs << std::endl << std::endl;
+        // Output results
+        std::cout << "Temperature: " << T << "\n";
+        std::cout << "Energy: " << energy / N << "\n";
+        std::cout << "Magnetization: " << static_cast<float>(M) / N << "\n";
     }
 
+    // Free memory
     cudaFree(dev_lattice);
-    cudaFree(dev_states);
     cudaFree(dev_energy);
     cudaFree(dev_M);
-    cudaFree(dev_probabilities);
+    cudaFree(dev_prob);
+    cudaFree(dev_states);
 
     return 0;
 }
