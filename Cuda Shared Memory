@@ -103,7 +103,7 @@ int main() {
         cudaEventRecord(start);
 
         // Reset lattice to all ones for each new temperature
-        cudaMemcpy(d_lattice, h_lattice, N * sizeof(int), cudaMemcpyHostToDevice);
+        //cudaMemcpy(d_lattice, h_lattice, N * sizeof(int), cudaMemcpyHostToDevice);
 
         for (int iter = 0; iter < ITER; ++iter) {
             metroIsing << <blocks, threads >> > (d_lattice, d_states, beta, iter % 2);
