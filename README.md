@@ -15,14 +15,14 @@ This project is an implementation of the Ising model simulation using C++. It mo
 
 To build and run the CPU-based simulation, you need:
 
-- C++ Compiler with C++17 or later support
-- OpenMP installed and enabled in your compiler
+- C++ Compiler with C++17 or later support.
+- OpenMP installed and enabled in your compiler.
 
 To build and run the GPU-accelerated simulation, you need:
 
-- CUDA Toolkit (version 10.0 or later is recommended)
-- NVIDIA GPU with Compute Capability 6.1 or higher
-- An NVIDIA GPU driver and CUDA-capable compiler (nvcc) installed and configured
+- CUDA Toolkit (version 10.0 or later is recommended).
+- NVIDIA GPU with Compute Capability 6.1 or higher.
+- An NVIDIA GPU driver and CUDA-capable compiler (nvcc) installed and configured.
 
 ## Building the Simulation
 
