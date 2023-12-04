@@ -2,7 +2,8 @@
 #include <curand.h>
 #include <curand_kernel.h>
 
-const int L = 128;                    // Lattice size (LxL)
+const int  ITER = 5e3;
+const int L = 1024;                    // Lattice size (LxL)
 const int N = L * L;
 const float J = 1.0f;
 const float beta = 0.5f;        // Critical temperature inverse for the 2D Ising model
@@ -104,7 +105,7 @@ int main() {
         // Reset lattice to all ones for each new temperature
         cudaMemcpy(d_lattice, h_lattice, N * sizeof(int), cudaMemcpyHostToDevice);
 
-        for (int iter = 0; iter < 1e4; ++iter) {
+        for (int iter = 0; iter < ITER; ++iter) {
             metroIsing << <blocks, threads >> > (d_lattice, d_states, beta, iter % 2);
         }
 
