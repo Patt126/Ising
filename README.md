@@ -21,7 +21,7 @@ To build and run the CPU-based simulation, you need:
 To build and run the GPU-accelerated simulation, you need:
 
 - CUDA Toolkit (version 10.0 or later is recommended)
-- NVIDIA GPU with Compute Capability 3.5 or higher
+- NVIDIA GPU with Compute Capability 6.1 or higher
 - An NVIDIA GPU driver and CUDA-capable compiler (nvcc) installed and configured
 
 ## Building the Simulation
