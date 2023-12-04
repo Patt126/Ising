@@ -5,10 +5,10 @@
 #include <cmath>
 #include <ctime>
 
-#define L 100
+#define L 1024
 #define N (L*L)
 #define J 1.00
-#define IT 5e8 // Number of iterations, should be divisible by 2 for even updates
+#define IT 2e9// Number of iterations, should be divisible by 2 for even updates
 #define NTHREADS 256 // Number of GPU threads
 
 __device__ int get_index(int row, int col) {
