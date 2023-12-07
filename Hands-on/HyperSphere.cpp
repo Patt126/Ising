@@ -60,7 +60,7 @@ public:
         std::vector<double> centre;
         std::vector<std::pair<double, double>> bounds;
 
-    void calculateModOmega(){
+    void calculateNorma(){
         double volTotale = 1.;
 
         volTotale *= std::pow(radius, n);
