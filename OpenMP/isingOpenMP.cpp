@@ -174,31 +174,46 @@ float simulate(float T,std::vector <int> & lattice, float& energy, int& M,std::v
 
     using namespace std;
     vector<float> prob(2);
-    prob[0] = exp(-4 * J/T);
-    prob[1] = exp(-8 * J/T);
+    prob[0] = exp(-4 * J / T);
+    prob[1] = exp(-8 * J / T);
 
-    vector<float> energy_vec(1);
-    energy_vec[0] =  energy;
 
-    vector<float> m(1);
-    m[0] = (float)M/N;
     vector<int> t_axis(1);
     t_axis[0] = 0;
-    #pragma omp parallel num_threads (numThread)
+    /*#pragma omp parallel num_threads (numThread) reduction(+ : M)
+        {
+    #pragma omp single
+            {
+                for (int i = 0; i < IT/(2*numThread) - 1; i++) {
+    #pragma omp taskgroup task_reduction(+: M)
+                    {
+                        for (int j = 0; j < 2*numThread; j+=2) {
+                            int index = i*2*numThread + j;
+                    #pragma omp task in_reduction(+: M)
+                            {
+                                M += flip(lattice, prob, energy, rand_vect[index], true); //true è nero
+                                M += flip(lattice, prob, energy, rand_vect[index+1], false); //false è bianco
+                            }
+                        }
+                    }
+                }
+            }
+        }
+*/
+    #pragma omp parallel for num_threads (numThread) reduction(+ : M)
     {
-        #pragma omp for reduction(+:M)
         for (int i = 0; i < IT-1; i+=2){
             int M_local = 0;
             M_local += flip(lattice, prob, energy, rand_vect[i], true); //true è nero
             //#pragma omp barrier
             M_local += flip(lattice, prob, energy, rand_vect[i+1], false); // false è bianco
-
             M += M_local;
-
+            #pragma omp barrier
 
         }
     }
-    return (float)M/N;
+    float m = (float)M/N;
+    return m ;
 }
 
 void create_rand_vect(std::vector<int>& rand_vect_0) {
@@ -241,17 +256,20 @@ int main() {
     std::vector<int> rand_vect;
     create_rand_vect(rand_vect);
 
+    auto start = std::chrono::high_resolution_clock::now();  // Start timing before simulation
     while(T<=3.5){
-        auto start = std::chrono::high_resolution_clock::now();  // Start timing before simulation
+
         results.push_back(simulate(T,lattice,energy,M,rand_vect,numThread));
-        auto end = std::chrono::high_resolution_clock::now();  // End timing after simulation
-        std::chrono::duration<double> elapsed = end - start;  // Calculate elapsed time
+
 
         T += 0.1;
 
-        cout << "Time taken for simulation at temperature " << T << ": " << elapsed.count() << " seconds" << endl;
+
         cout << abs(results.back()) << endl;
     }
+    auto end = std::chrono::high_resolution_clock::now();  // End timing after simulation
+    std::chrono::duration<double> elapsed = end - start;  // Calculate elapsed time
+    cout  << elapsed.count() << endl;
 
 
 
