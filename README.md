@@ -47,5 +47,5 @@ To run the simulation, simply execute the generated binary:
 ./ising_simulation
 ```
 
-The program's output will display the simulation results, including the energy and magnetization of the system as it evolves over time and temperature changes.
+The program's output will display the simulation results, including the energy and magnetization of the system as at each temperature.
 
