@@ -182,37 +182,41 @@ float simulate(float T,std::vector <int> & lattice, float& energy, int& M,std::v
         {
             //define the number of bloch team iteration, in each iteration a flip in each block is attempted
             // even iteration is for black blocks, odd is for white one
-        for (unsigned long int i = 0; i < IT / (NUMTHREAD) ; i++) {
-                    bool color = (i%2 == 0);
+            for (unsigned long int i = 0; i < IT / (NUMTHREAD * NUMTHREAD); i++) {
+                bool color = (i % 2 == 0);
 
-                    //this two for spawns a group of thread that must be synchronized each group iteration
-                    for (int row = 0; row < NUMBLOCKLINE; row += 1){
-                        int column;
-                        if(color){column = row%2;} //If black we have that even row start with black
-                        else{column = 1 - row%2;} //If white we have that odd row start with white
-                        //cout<<" Column: " <<column<<endl;
-                        while(column < NUMBLOCKLINE) {
-                            // (find the row)*row_lwnght + BlockColumn + columnINblock
-                            //first term is first site in our block
-                            #pragma omp task
-                            {
-                                int iteration = i*NUMTHREAD + row*NUMBLOCKLINE + column; //count the number of total iteration
-                                int flipingSite = (row*A + row_vect[iteration])*L + column*A +  col_vect[iteration] ;
+                //this two for spawns a group of thread that must be synchronized each group iteration
+                for (int row = 0; row < NUMBLOCKLINE; row += 1) {
+                    int column;
+                    if (color) { column = row % 2; } //If black we have that even row start with black
+                    else { column = 1 - row % 2; } //If white we have that odd row start with white
+                    //cout<<" Column: " <<column<<endl;
+                    while (column < NUMBLOCKLINE) {
+                        // (find the row)*row_lwnght + BlockColumn + columnINblock
+                        //first term is first site in our block
+                #pragma omp task
+                        {
+                            // shift = column*NUMTHREAD + row*NUMBLOCKLINE*NUMTHREAD due to current htread work
+                            int iteration = i * NUMTHREAD + (row * NUMBLOCKLINE + column) *
+                                                            NUMTHREAD; //count the number of total iteration
+                            for (int j = 0; j < NUMTHREAD; j++) {
+                                int r = row_vect[iteration + j], c = col_vect[iteration + j];
+                                int flipingSite = (row * A + r) * L + column * A + c;
+
                                 flip(lattice, prob, energy, flipingSite); //true è nero
-                                //cout<<"COLOR: "<<color<<" ITERATION: "<<iteration;
 
                             }
-                            column += 2;
                         }
+                        //cout<<"COLOR: "<<color<<" ITERATION: "<<iteration;
 
-                    #pragma omp taskwait
+#pragma omp taskwait
 
 
                     }
                 }
             }
         }
-
+    }
 /*
      #pragma omp parallel for num_threads (numThread) reduction(+ : M)
      {
