@@ -6,30 +6,32 @@
 #include<ctime>
 #include <chrono>
 #include <omp.h>
+#include <random>
 
 
 
 #define L 100
 #define N (L*L)
-int A = 25; //Block size assigned to each thread
+#define A 25//Block side lenght
 #define J 1.00
-#define IT 6*1e7 //number of iterations
+#define IT 6*1e7//number of iterations
 
-void print_lattice(std::vector < std::vector<int> >& matrix) {
+void print_lattice(std::vector <int> & lattice) {
 
-    int i, j;
-    for (i = 0; i < L; i++) {
-        std::cout << std::endl;
-        for (j = 0; j < L; j++) {
-            if (matrix[i][j] == -1) {
-                std::cout << "o" << " ";
-            } else {
-                std::cout << "x" << " ";
+    int i;
+    for (i = 0; i < N; i++) {
+        if(i%L == 0) std::cout<<std::endl;
+        if (lattice[i] == -1) {
+            std::cout << "o" << " ";
+        } else {
+            std::cout << "x" << " ";
 
-            }
+
         }
     }
+    std::cout<<std::endl;
 }
+
 
 //if needed function to correctly evaluate energy
 float evaluate(std::vector<int>& lattice) {
@@ -53,17 +55,11 @@ float evaluate(std::vector<int>& lattice) {
     return -J*sum;
 }
 
-int flip(std::vector <int> & lattice, std::vector<float>& prob,float& energy, int n, bool color) {
+int flip(std::vector <int> & lattice, std::vector<float>& prob,float& energy, int site) {
 
     int sum = 0;
     int ID = omp_get_thread_num();
-    int site = A * 2 * ID; //find from n the site to flip based on thread ID
-    if(color){
-        site +=( (ID/3) % 2) * A; //ID/3 gives the integer truncated part
-    }
-    else{
-        site +=1 - ( (ID/3) % 2) * A;
-    }
+    //std::cout<<"ID: "<<" site: "<<site<<std::endl;
 
     if (site < L) {
         sum += lattice[site+L*(L-1)];
@@ -94,6 +90,7 @@ int flip(std::vector <int> & lattice, std::vector<float>& prob,float& energy, in
     if (delta <= 0) {
         lattice[site] = -lattice[site];
     }
+
     else if (delta == 4) {
         float rnd = (rand() % 10000)/1e4;
         if (rnd < prob[0] ){
@@ -106,14 +103,13 @@ int flip(std::vector <int> & lattice, std::vector<float>& prob,float& energy, in
     else if (delta==8){
         float rnd = (rand() % 10000)/1e4;
         if (rnd < prob[1]) {
-            lattice[n] = -lattice[n];
+            lattice[site] = -lattice[site];
         }
         else{
             return 0;
         }
     }
-
-    return 2*lattice[n];
+    return 2*lattice[site];
 
 }
 
@@ -170,7 +166,7 @@ int write_file(std::vector<float>& energy_vec, std::vector<float>& m, std::vecto
 
 
 
-float simulate(float T,std::vector <int> & lattice, float& energy, int& M,std::vector<int>& rand_vect, const int numThread) {
+float simulate(float T,std::vector <int> & lattice, float& energy, int& M,std::vector<int> row_vect, std::vector<int> col_vect,const int NUMTHREAD, const int NUMBLOCKLINE) {
 
     using namespace std;
     vector<float> prob(2);
@@ -180,61 +176,79 @@ float simulate(float T,std::vector <int> & lattice, float& energy, int& M,std::v
 
     vector<int> t_axis(1);
     t_axis[0] = 0;
-    /*#pragma omp parallel num_threads (numThread) reduction(+ : M)
+#pragma omp parallel num_threads (NUMTHREAD)
+    {
+#pragma omp single
         {
-    #pragma omp single
-            {
-                for (int i = 0; i < IT/(2*numThread) - 1; i++) {
-    #pragma omp taskgroup task_reduction(+: M)
-                    {
-                        for (int j = 0; j < 2*numThread; j+=2) {
-                            int index = i*2*numThread + j;
-                    #pragma omp task in_reduction(+: M)
+            //define the number of bloch team iteration, in each iteration a flip in each block is attempted
+            // even iteration is for black blocks, odd is for white one
+        for (unsigned long int i = 0; i < IT / (NUMTHREAD) ; i++) {
+                    bool color = (i%2 == 0);
+
+                    //this two for spawns a group of thread that must be synchronized each group iteration
+                    for (int row = 0; row < NUMBLOCKLINE; row += 1){
+                        int column;
+                        if(color){column = row%2;} //If black we have that even row start with black
+                        else{column = 1 - row%2;} //If white we have that odd row start with white
+                        //cout<<" Column: " <<column<<endl;
+                        while(column < NUMBLOCKLINE) {
+                            // (find the row)*row_lwnght + BlockColumn + columnINblock
+                            //first term is first site in our block
+                            #pragma omp task
                             {
-                                M += flip(lattice, prob, energy, rand_vect[index], true); //true è nero
-                                M += flip(lattice, prob, energy, rand_vect[index+1], false); //false è bianco
+                                int iteration = i*NUMTHREAD + row*NUMBLOCKLINE + column; //count the number of total iteration
+                                int flipingSite = (row*A + row_vect[iteration])*L + column*A +  col_vect[iteration] ;
+                                flip(lattice, prob, energy, flipingSite); //true è nero
+                                //cout<<"COLOR: "<<color<<" ITERATION: "<<iteration;
+
                             }
+                            column += 2;
                         }
+
+                    #pragma omp taskwait
+
+
                     }
                 }
             }
         }
-*/
-    #pragma omp parallel for num_threads (numThread) reduction(+ : M)
-    {
-        for (int i = 0; i < IT-1; i+=2){
-            int M_local = 0;
-            M_local += flip(lattice, prob, energy, rand_vect[i], true); //true è nero
-            //#pragma omp barrier
-            M_local += flip(lattice, prob, energy, rand_vect[i+1], false); // false è bianco
-            M += M_local;
-            #pragma omp barrier
 
-        }
-    }
-    float m = (float)M/N;
-    return m ;
+/*
+     #pragma omp parallel for num_threads (numThread) reduction(+ : M)
+     {
+         for (int i = 0; i < IT-1; i+=2){
+             int M_local = 0;
+             M += flip(lattice, prob, energy, rand_vect[i], true); //true è nero
+             M += flip(lattice, prob, energy, rand_vect[i+1], false); //true è nero
+
+         }
+     }*/
+
+
+    //float m = (float)M/N;
+return 0 ;
 }
 
-void create_rand_vect(std::vector<int>& rand_vect_0) {
+void create_rand_vect(std::vector<int> &row_vect,std::vector<int> &col_vect) {
     int i;
     for (i = 0; i < IT; i++) {
-        rand_vect_0.push_back(rand() % L );
+        row_vect.push_back(rand() % A);//ROW
+        col_vect.push_back(rand() % A);//COL
+
     }
 }
 
-const int setBlockSize(int dimSideBlock){
-    if(L%dimSideBlock == 0){
-        const int numCellRow = L/dimSideBlock; // = numero di celle per colonna
-        if(numCellRow % 2 == 0){
-            return numCellRow*numCellRow/2;
+//return the number of block in a line = num  blocks in a col
+const int setBlockSize(int dimSideBlock) {
+    if (L % dimSideBlock == 0) {
+        const int numCellRow = L / dimSideBlock; // = numero di celle per colonna
+        if (numCellRow % 2 == 0) {
+            return numCellRow;
+        } else {
+            std::cout << "Con il valore inserito non posso definire una scacchiera";
         }
-        else{
-            std::cout<<"Con il valore inserito non posso definire una scacchiera";
-        }
-    }
-    else{
-        std::cout<<"La dimensione del reticolo non è multiplo della dimensione del blocco";
+    } else {
+        std::cout << "La dimensione del reticolo non è multiplo della dimensione del blocco";
     }
     return 0;
 }
@@ -245,23 +259,27 @@ int main() {
     unsigned seed = time(0);
     srand(seed);
     vector<int> lattice(N);
-    const int numThread = setBlockSize(A);
+    const int NUMBLOCKLINE = setBlockSize(A);
+    const int NUMTHREAD = NUMBLOCKLINE*NUMBLOCKLINE/2;
+    cout << NUMTHREAD <<" "<<NUMBLOCKLINE<< endl;
     float energy = 0;
-    int M =0;
-    initialize_lattice(lattice,energy,M);
+    int M = 0;
+    initialize_lattice(lattice, energy, M);
+    print_lattice(lattice);
     float T = 0.1;
-    vector<float> results (1);
+    vector<float> results(1);
     results[0] = 1;
 
-    std::vector<int> rand_vect;
-    create_rand_vect(rand_vect);
+    vector<int> row_vect;
+    vector<int> col_vect;
+    create_rand_vect(row_vect,col_vect);
 
     auto start = std::chrono::high_resolution_clock::now();  // Start timing before simulation
-    while(T<=3.5){
+    while (T <= 0.2) {
 
-        results.push_back(simulate(T,lattice,energy,M,rand_vect,numThread));
+        results.push_back(simulate(T, lattice, energy, M, row_vect, col_vect, NUMTHREAD, NUMBLOCKLINE));
 
-
+        print_lattice(lattice);
         T += 0.1;
 
 
@@ -269,8 +287,7 @@ int main() {
     }
     auto end = std::chrono::high_resolution_clock::now();  // End timing after simulation
     std::chrono::duration<double> elapsed = end - start;  // Calculate elapsed time
-    cout  << elapsed.count() << endl;
-
+    cout << elapsed.count() << endl;
 
 
     return 0;
