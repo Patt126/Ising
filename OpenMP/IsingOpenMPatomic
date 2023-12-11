@@ -15,7 +15,8 @@
 #define A 25//Block side lenght
 #define J 1.00
 #define IT 6*1e7//number of iterations
-#define chunck 20;
+#define CHUNKSIZE 1e3
+
 
 void print_lattice(std::vector <int> & lattice) {
 
@@ -56,45 +57,52 @@ float evaluate(std::vector<int>& lattice) {
     return -J*sum;
 }
 
-int flip(std::vector <int> & lattice, std::vector<float>& prob,float& energy, int site) {
-
+int atomicflip(std::vector <int> & lattice, std::vector<float>& prob, int site) {
     int sum = 0;
-    int ID = omp_get_thread_num();
-    //std::cout<<"ID: "<<" site: "<<site<<std::endl;
-
+    int spin;
     if (site < L) {
+        spin = lattice[site+L*(L-1)];
         sum += lattice[site+L*(L-1)];
     }
     else {
+        spin = lattice[site-L];
         sum += lattice[site-L];
     }
     if (site % L == 0) {
+        spin = lattice[site+(L-1)];
         sum += lattice[site + (L - 1)];
     }
     else {
+        spin = lattice[site-1];
         sum += lattice[site - 1];
     }
 
     if (site >= L*(L - 1)) {
+        spin = lattice[site-L*(L-1)];
         sum += lattice[site - L*(L-1)];
     }
     else {
+        spin = lattice[site+L];
         sum += lattice[site + L];
     }
     if ((site+1) % L == 0) {
+        spin = lattice[site-(L-1)];
         sum += lattice[site - (L-1)];
     }
     else {
+        spin = lattice[site+1];
         sum += lattice[site + 1];
     }
     int delta = 2*sum*lattice[site];
     if (delta <= 0) {
+#pragma omp atomic write
         lattice[site] = -lattice[site];
     }
 
     else if (delta == 4) {
         float rnd = (rand() % 10000)/1e4;
         if (rnd < prob[0] ){
+#pragma omp atomic write
             lattice[site] = -lattice[site];
         }
         else{
@@ -104,6 +112,7 @@ int flip(std::vector <int> & lattice, std::vector<float>& prob,float& energy, in
     else if (delta==8){
         float rnd = (rand() % 10000)/1e4;
         if (rnd < prob[1]) {
+#pragma omp atomic write
             lattice[site] = -lattice[site];
         }
         else{
@@ -114,62 +123,43 @@ int flip(std::vector <int> & lattice, std::vector<float>& prob,float& energy, in
 
 }
 
-int atomicflip(std::vector <int> & lattice, std::vector<float>& prob,float& energy, int site) {
+int flip(std::vector <int> & lattice, std::vector<float>& prob, int site) {
+
     int sum = 0;
-    int ID = omp_get_thread_num();
-    //std::cout<<"ID: "<<" site: "<<site<<std::endl;
-    int spin;
+
     if (site < L) {
-    #pragma omp atomic read acquire
-        spin = lattice[site+L*(L-1)];
         sum += lattice[site+L*(L-1)];
     }
     else {
-    #pragma omp atomic read acquire
-        spin = lattice[site-L];
         sum += lattice[site-L];
     }
     if (site % L == 0) {
-    #pragma omp atomic read acquire
-        spin = lattice[site+(L-1)];
         sum += lattice[site + (L - 1)];
     }
     else {
-    #pragma omp atomic read acquire
-        spin = lattice[site-1];
         sum += lattice[site - 1];
     }
 
     if (site >= L*(L - 1)) {
-    #pragma omp atomic read acquire
-        spin = lattice[site-L*(L-1)];
         sum += lattice[site - L*(L-1)];
     }
     else {
-    #pragma omp atomic read acquire
-        spin = lattice[site+L];
         sum += lattice[site + L];
     }
     if ((site+1) % L == 0) {
-    #pragma omp atomic read acquire
-        spin = lattice[site-(L-1)];
         sum += lattice[site - (L-1)];
     }
     else {
-    #pragma omp atomic read acquire
-        spin = lattice[site+1];
         sum += lattice[site + 1];
     }
     int delta = 2*sum*lattice[site];
     if (delta <= 0) {
-    #pragma omp atomic write
         lattice[site] = -lattice[site];
     }
 
     else if (delta == 4) {
         float rnd = (rand() % 10000)/1e4;
         if (rnd < prob[0] ){
-            #pragma omp atomic write
             lattice[site] = -lattice[site];
         }
         else{
@@ -179,7 +169,6 @@ int atomicflip(std::vector <int> & lattice, std::vector<float>& prob,float& ener
     else if (delta==8){
         float rnd = (rand() % 10000)/1e4;
         if (rnd < prob[1]) {
-            #pragma omp atomic write
             lattice[site] = -lattice[site];
         }
         else{
@@ -243,97 +232,65 @@ int write_file(std::vector<float>& energy_vec, std::vector<float>& m, std::vecto
 
 
 
-float simulate(float T,std::vector <int> & lattice, float& energy, int& M,std::vector<int> row_vect, std::vector<int> col_vect,const int NUMTHREAD, const int NUMBLOCKLINE) {
+float simulate(float T,std::vector <int> & lattice, std::vector<int> num_vect, std::vector<int> block_vect, const int NUMBLOCKS,std::vector<int> tStart) {
 
     using namespace std;
     vector<float> prob(2);
     prob[0] = exp(-4 * J / T);
     prob[1] = exp(-8 * J / T);
 
+    int M_local,M=0;
 
     vector<int> t_axis(1);
     t_axis[0] = 0;
-#pragma omp parallel num_threads (NUMTHREAD)
+    const int chunckSize = floor(IT/(100*NUMBLOCKS));
+#pragma omp parallel for num_threads(NUMBLOCKS) schedule(static, (int)CHUNKSIZE) private(M_local) reduction(+:M)
     {
+        for (unsigned long int i = 0; i < IT ; i++) {
 
-            //define the number of bloch team iteration, in each iteration a flip in each block is attempted
-            // even iteration is for black blocks, odd is for white one
-    #pragma omp for
-            for (unsigned long int i = 0; i < IT / (NUMTHREAD*NUMTHREAD) ; i++) {
-                    bool color = (i%2 == 0);
 
-                    //this two for spawns a group of thread that must be synchronized each group iteration
-                    for (int row = 0; row < NUMBLOCKLINE; row += 1){
-                        int column;
-                        if(color){column = row%2;} //If black we have that even row start with black
-                        else{column = 1 - row%2;} //If white we have that odd row start with white
-                        //cout<<" Column: " <<column<<endl;
-                        while(column < NUMBLOCKLINE) {
-                            // (find the row)*row_lwnght + BlockColumn + columnINblock
-                            //first term is first site in our block
-                            #pragma omp task
-                            {
-                                // shift = column*NUMTHREAD + row*NUMBLOCKLINE*NUMTHREAD due to current htread work
-                                int iteration = i*NUMTHREAD + (row*NUMBLOCKLINE + column)*NUMTHREAD; //count the number of total iteration
-                                for(int j = 0; j<NUMTHREAD; j++) {
-                                    int r = row_vect[iteration+j], c = col_vect[iteration+j];
-                                    int flipingSite =(row * A + r )* L + column * A + c;
-                                    if (r == 0 || r == (A - 1) || c == 0 || c == (A - 1)) {
-                                        atomicflip(lattice, prob, energy, flipingSite); //true è nero
-                                    } else {
-                                        flip(lattice, prob, energy, flipingSite); //true è nero
-                                    }
-                                }
-                                //cout<<"COLOR: "<<color<<" ITERATION: "<<iteration;
-
-                            }
-
-                            column += 2;
+                    //first term is first site in our block
+                    // shift = column*NUMTHREAD + row*NUMBLOCKLINE*NUMTHREAD due to current htread work
+                        int r = num_vect[i], c = block_vect[i];
+                        int flipingSite = tStart[omp_get_thread_num()] + r * L  + c;
+                        if (r == 0 || r == (A - 1) || c == 0 || c == (A - 1)) {
+                            M_local = atomicflip(lattice, prob, flipingSite);
+                        } else {
+                            M_local = flip(lattice, prob, flipingSite); //true è nero
                         }
+                        M+=M_local;
 
-                    //#pragma omp taskwait
-
-
-
+                    }
                 }
-            }
-        }
+                //cout<<"COLOR: "<<color<<" ITERATION: "<<iteration;
 
-/*
-     #pragma omp parallel for num_threads (numThread) reduction(+ : M)
-     {
-         for (int i = 0; i < IT-1; i+=2){
-             int M_local = 0;
-             M += flip(lattice, prob, energy, rand_vect[i], true); //true è nero
-             M += flip(lattice, prob, energy, rand_vect[i+1], false); //true è nero
 
-         }
-     }*/
 
 
     //float m = (float)M/N;
-return 0 ;
+    return 0 ;
 }
 
-void create_rand_vect(std::vector<int> &row_vect,std::vector<int> &col_vect) {
+void create_rand_vect(std::vector<int> &inside_vect,std::vector<int> &block_vect, const int NUMBLOCKS,std::vector<int> & tStart) {
     int i;
     for (i = 0; i < IT; i++) {
-        row_vect.push_back(rand() % A);//ROW
-        col_vect.push_back(rand() % A);//COL
+        inside_vect.push_back(rand() % A);//ROW
+        block_vect.push_back(rand() % A);//COL
 
     }
 }
 
 //return the number of block in a line = num  blocks in a col
-const int setBlockSize(int dimSideBlock) {
+const int setBlockSize(int dimSideBlock,std::vector<int>& tStart) {
     if (L % dimSideBlock == 0) {
         const int numCellRow = L / dimSideBlock; // = numero di celle per colonna
-        if (numCellRow % 2 == 0) {
-            return numCellRow;
-        } else {
-            std::cout << "Con il valore inserito non posso definire una scacchiera";
+        const int NUMBLOCKS = numCellRow*numCellRow;
+        for(int i=0;i<  NUMBLOCKS;i++){
+            tStart.push_back(floor(i/numCellRow)*A*L + i%numCellRow*A); //thread at which each block start
         }
-    } else {
+        return NUMBLOCKS;
+    }
+    else {
         std::cout << "La dimensione del reticolo non è multiplo della dimensione del blocco";
     }
     return 0;
@@ -345,9 +302,9 @@ int main() {
     unsigned seed = time(0);
     srand(seed);
     vector<int> lattice(N);
-    const int NUMBLOCKLINE = setBlockSize(A);
-    const int NUMTHREAD = NUMBLOCKLINE*NUMBLOCKLINE/2;
-    cout << NUMTHREAD <<" "<<NUMBLOCKLINE<< endl;
+    vector<int> tStart;
+    const int NUMBLOCKS = setBlockSize(A,tStart);
+    cout << NUMBLOCKS << endl;
     float energy = 0;
     int M = 0;
     initialize_lattice(lattice, energy, M);
@@ -356,14 +313,14 @@ int main() {
     vector<float> results(1);
     results[0] = 1;
 
-    vector<int> row_vect;
-    vector<int> col_vect;
-    create_rand_vect(row_vect,col_vect);
+    vector<int> ins_vect;
+    vector<int> block_vect;
+    create_rand_vect(ins_vect,block_vect,NUMBLOCKS,tStart);
 
     auto start = std::chrono::high_resolution_clock::now();  // Start timing before simulation
     while (T <= 0.2) {
 
-        results.push_back(simulate(T, lattice, energy, M, row_vect, col_vect, NUMTHREAD, NUMBLOCKLINE));
+        results.push_back(simulate(T, lattice, ins_vect, block_vect, NUMBLOCKS, tStart));
 
         print_lattice(lattice);
         T += 0.1;
