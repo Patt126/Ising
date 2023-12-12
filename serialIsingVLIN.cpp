@@ -8,25 +8,25 @@
 
 
 
-#define L 100
+#define L 1000
 #define N (L*L)
 #define J 1.00
-#define IT 6*1e7 //number of iterations
+#define IT 2*1e9 //number of iterations
 
-void print_lattice(std::vector < std::vector<int> >& matrix) {
+void print_lattice(std::vector <int> & lattice) {
 
-    int i, j;
-    for (i = 0; i < L; i++) {
-        std::cout << std::endl;
-        for (j = 0; j < L; j++) {
-            if (matrix[i][j] == -1) {
-                std::cout << "o" << " ";
-            } else {
-                std::cout << "x" << " ";
+    int i;
+    for (i = 0; i < N; i++) {
+        if(i%L == 0) std::cout<<std::endl;
+        if (lattice[i] == -1) {
+            std::cout << "o" << " ";
+        } else {
+            std::cout << "x" << " ";
 
-            }
+
         }
     }
+    std::cout<<std::endl;
 }
 
 //if needed function to correctly evaluate energy
@@ -215,12 +215,21 @@ int main() {
 
     std::vector<int> rand_vect;
     create_rand_vect(rand_vect);
+    print_lattice(lattice);
+    auto start = std::chrono::high_resolution_clock::now();  // Start timing before simulation
+    while(T<=0.2){
 
-    while(T<=3.5){
         results.push_back(simulate(T,lattice,energy,M,rand_vect));
-        T += 0.02;
-        cout<<abs(results.back())<<endl;
+
+
+        T += 0.1;
+
+        print_lattice(lattice);
+        cout << abs(results.back()) << endl;
     }
+    auto end = std::chrono::high_resolution_clock::now();  // End timing after simulation
+    std::chrono::duration<double> elapsed = end - start;  // Calculate elapsed time
+    cout << "Time taken for simulation : "<< ": " << elapsed.count() << " seconds" << endl;
 
 
 
