@@ -56,7 +56,7 @@ Replace `<number_of_processes>` with the desired number of MPI processes.
 - Ensure MPI is correctly installed and configured on your system or computing cluster.
 - The MPI version can be combined with OpenMP to leverage multi-threading on each node in addition to distributed computing.
 
-## CUDA Folder
+## Notes on CUDA Folder
 
 The CUDA folder contains three different versions. The fastest among them is named `ising_simulation`. There's another implementation that attempts to utilize shared memory, but it's not the quickest.
 
