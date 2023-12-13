@@ -62,8 +62,8 @@ The CUDA folder contains three different versions. The fastest among them is nam
 
 The output of the program presents the results of the simulation, including the system's energy and magnetization at each temperature.
 
-## Hands On*
+## Hands On
 
 In the Hands On section, the same Metropolis algorithm used for the 2D Ising Simulation is employed to write parallel code. This code calculates Monte Carlo Integrals on rectangular and spherical domains in any number of dimensions.
 
-"
+
