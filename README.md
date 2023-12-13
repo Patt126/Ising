@@ -47,8 +47,14 @@ To run the simulation, simply execute the generated binary:
 ./ising_simulation
 ```
 
-**CUDA Folder**
-In the CUDA folder there are three different version , which the final one named ising_simulation, which is the faster one. There is an implementation, called CUDA_SM_01.cu, that tries to use shared memory, but it isn't the faster one.
 
 The program's output will display the simulation results, including the energy and magnetization of the system as at each temperature.
+
+**CUDA Folder**
+The CUDA folder contains three different versions. The fastest among them is named `ising_simulation`. There's another implementation that attempts to utilize shared memory, but it's not the quickest.
+
+The output of the program presents the results of the simulation, including the system's energy and magnetization at each temperature.
+
+**Hands On**
+In the Hands On section, the same Metropolis algorithm used for the 2D Ising Simulation is employed to write parallel code. This code calculates Monte Carlo Integrals on rectangular and spherical domains in any number of dimensions.
 
