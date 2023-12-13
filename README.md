@@ -1,62 +1,69 @@
+# Ising Model Simulation in C++ with MPI, OpenMP, and CUDA
 
-# Ising Model Simulation in C++ with OpenMP and CUDA
-
-This project is an implementation of the Ising model simulation using C++. It models the magnetic dipole moments of atomic "spins" on a lattice that are either in one of two states (+1 or -1). The spins are arranged in a grid, and the model can simulate phase transitions for ferromagnetic materials. 
+This project implements the Ising model simulation using C++ and offers parallel computation using MPI (for distributed systems), OpenMP (for multicore CPUs), and CUDA (for NVIDIA GPUs). It models the magnetic dipole moments of atomic "spins" on a lattice, simulating phase transitions in ferromagnetic materials.
 
 ## Features
 
 - 2D Ising Model simulation with periodic boundary conditions.
-- Hybrid parallel computation utilizing both OpenMP (for multicore CPUs) and CUDA (for NVIDIA GPUs).
-- Configurable simulation parameters such as lattice size, temperature range, and number of iterations.
-- Observation of physical properties like total energy and magnetization as a function of temperature.
-- CUDA-based random number generation and lattice initialization for high-performance execution on GPUs.
+- Hybrid parallel computation utilizing MPI, OpenMP, and CUDA.
+- Configurable parameters such as lattice size, temperature range, and number of iterations.
+- Analysis of physical properties like total energy and magnetization.
 
 ## Prerequisites
 
-To build and run the CPU-based simulation, you need:
-
 - C++ Compiler with C++17 or later support.
-- OpenMP installed and enabled in your compiler.
-
-To build and run the GPU-accelerated simulation, you need:
-
-- CUDA Toolkit (version 10.0 or later is recommended).
-- NVIDIA GPU with Compute Capability 6.1 or higher.
-- An NVIDIA GPU driver and CUDA-capable compiler (nvcc) installed and configured.
+- OpenMP for multicore CPU parallelization.
+- MPI implementation (e.g., MPICH or OpenMPI) for distributed system parallelization.
+- CUDA Toolkit and NVIDIA GPU for GPU-accelerated execution.
 
 ## Building the Simulation
 
-To compile the CPU-based version of the simulation with OpenMP support, use the following command:
-
-
+**For CPU-based Parallelization with OpenMP:**
 ```bash
 g++ -std=c++17 -fopenmp ising_simulation.cpp -o ising_simulation
 ```
 
-For the GPU-accelerated version with CUDA, use the nvcc compiler provided by the CUDA Toolkit:
-
+**For GPU-accelerated Parallelization with CUDA:**
 ```bash
-nvcc -std=c++17  ising_simulation.cu -o ising_simulation
+nvcc -std=c++17 ising_simulation.cu -o ising_simulation
 ```
 
-**Running the Simulation**
+**For Distributed System Parallelization with MPI:**
+```bash
+mpicxx -std=c++17 -fopenmp ising_simulation_mpi.cpp -o ising_simulation_mpi
+```
+or
+```bash
+mpic++ -std=c++17 -fopenmp ising_simulation_mpi.cpp -o ising_simulation_mpi
+```
 
-To run the simulation, simply execute the generated binary:
+## Running the Simulation
 
+**For OpenMP and CUDA Versions:**
 ```bash
 ./ising_simulation
 ```
 
+**For the MPI Version:**
+```bash
+mpirun -np <number_of_processes> ./ising_simulation_mpi
+```
+Replace `<number_of_processes>` with the desired number of MPI processes.
 
-The program's output will display the simulation results, including the energy and magnetization of the system as at each temperature.
+## Notes on MPI Version
 
-**CUDA Folder**
+- The MPI version of the simulation is designed for distributed systems and can be run on multiple nodes or processors.
+- Ensure MPI is correctly installed and configured on your system or computing cluster.
+- The MPI version can be combined with OpenMP to leverage multi-threading on each node in addition to distributed computing.
+
+## CUDA Folder
 
 The CUDA folder contains three different versions. The fastest among them is named `ising_simulation`. There's another implementation that attempts to utilize shared memory, but it's not the quickest.
 
 The output of the program presents the results of the simulation, including the system's energy and magnetization at each temperature.
 
-**Hands On**
+## Hands On*
 
 In the Hands On section, the same Metropolis algorithm used for the 2D Ising Simulation is employed to write parallel code. This code calculates Monte Carlo Integrals on rectangular and spherical domains in any number of dimensions.
 
+"
