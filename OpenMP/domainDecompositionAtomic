@@ -10,15 +10,15 @@
 
 
 
-#define L 100
+#define L 200
 #define N (L*L)
-#define A 25//Block side lenght
+#define A 50//Block side lenght
 #define J 1.00
-#define IT 6*1e7//number of iterations
-#define CHUNKSIZE 1e3
+#define IT 6*1e8//number of iterations
+#define CHUNKSIZE 1e6
 
 
-void print_lattice(std::vector <int> & lattice) {
+void print_lattice(std::vector<int>& lattice) {
 
     int i;
     for (i = 0; i < N; i++) {
@@ -232,7 +232,7 @@ int write_file(std::vector<float>& energy_vec, std::vector<float>& m, std::vecto
 
 
 
-float simulate(float T,std::vector <int> & lattice, std::vector<int> num_vect, std::vector<int> block_vect, const int NUMBLOCKS,std::vector<int> tStart) {
+float simulate(float T,std::vector <int> & lattice, std::vector<int> num_vect, const int NUMBLOCKS,std::vector<bool> boundary) {
 
     using namespace std;
     vector<float> prob(2);
@@ -243,23 +243,23 @@ float simulate(float T,std::vector <int> & lattice, std::vector<int> num_vect, s
 
     vector<int> t_axis(1);
     t_axis[0] = 0;
-    const int chunckSize = floor(IT/(100*NUMBLOCKS));
-#pragma omp parallel for num_threads(NUMBLOCKS) schedule(static, (int)CHUNKSIZE) private(M_local) reduction(+:M)
+    //const int chunckSize = floor(IT/(NUMBLOCKS));
+#pragma omp parallel for num_threads(NUMBLOCKS) schedule(dynamic, (int)CHUNKSIZE)
     {
         for (unsigned long int i = 0; i < IT ; i++) {
 
 
                     //first term is first site in our block
                     // shift = column*NUMTHREAD + row*NUMBLOCKLINE*NUMTHREAD due to current htread work
-                        int r = num_vect[i], c = block_vect[i];
-                        int flipingSite = tStart[omp_get_thread_num()] + r * L  + c;
-                        if (r == 0 || r == (A - 1) || c == 0 || c == (A - 1)) {
-                            M_local = atomicflip(lattice, prob, flipingSite);
+                        //int r = num_vect[i], c = block_vect[i];
+                        //int flipingSite = tStart[omp_get_thread_num()] + r * L  + c;
+                        //if (boundary[i]) {
+                        int n = num_vect[i];
+                        if(n%A==0||(n+1)%A==0||n%(A*L)==0||(n+L)%(A*L)==0){
+                            atomicflip(lattice, prob, n);
                         } else {
-                            M_local = flip(lattice, prob, flipingSite); //true è nero
+                            flip(lattice, prob, n); //true è nero
                         }
-                        M+=M_local;
-
                     }
                 }
                 //cout<<"COLOR: "<<color<<" ITERATION: "<<iteration;
@@ -268,17 +268,30 @@ float simulate(float T,std::vector <int> & lattice, std::vector<int> num_vect, s
 
 
     //float m = (float)M/N;
-    return 0 ;
+    return M;
 }
 
-void create_rand_vect(std::vector<int> &inside_vect,std::vector<int> &block_vect, const int NUMBLOCKS,std::vector<int> & tStart) {
-    int i;
-    for (i = 0; i < IT; i++) {
-        inside_vect.push_back(rand() % A);//ROW
-        block_vect.push_back(rand() % A);//COL
 
+
+void create_rand_vect(std::vector<int> &rand_vect,const int NUMBLOCKS, std::vector<int> & tStart,std::vector<bool>& boundary) {
+    int i;
+
+    for (unsigned long int i = 0; i < IT/CHUNKSIZE; i++) {
+        //first term is first site in our block
+        // shift = column*NUMTHREAD + row*NUMBLOCKLINE*NUMTHREAD due to current htread work
+        for (int j = 0;j<CHUNKSIZE;j++) {
+            int r = rand() % A, c = rand() % A;
+            rand_vect.push_back(tStart[i%NUMBLOCKS] + r * L + c);
+            if(r==0 || r==(A-1)||c==0||c==(A-1)){
+                boundary.push_back(true);
+            }
+            else{
+                boundary.push_back(false);
+            }
+        }
     }
 }
+
 
 //return the number of block in a line = num  blocks in a col
 const int setBlockSize(int dimSideBlock,std::vector<int>& tStart) {
@@ -303,6 +316,7 @@ int main() {
     srand(seed);
     vector<int> lattice(N);
     vector<int> tStart;
+    vector<bool> boundary;
     const int NUMBLOCKS = setBlockSize(A,tStart);
     cout << NUMBLOCKS << endl;
     float energy = 0;
@@ -313,14 +327,15 @@ int main() {
     vector<float> results(1);
     results[0] = 1;
 
-    vector<int> ins_vect;
-    vector<int> block_vect;
-    create_rand_vect(ins_vect,block_vect,NUMBLOCKS,tStart);
+    vector<int> n_vect;
+    create_rand_vect(n_vect,NUMBLOCKS,tStart,boundary);
+
+
 
     auto start = std::chrono::high_resolution_clock::now();  // Start timing before simulation
     while (T <= 0.2) {
 
-        results.push_back(simulate(T, lattice, ins_vect, block_vect, NUMBLOCKS, tStart));
+        results.push_back(simulate(T, lattice, n_vect, NUMBLOCKS,boundary));
 
         print_lattice(lattice);
         T += 0.1;
