@@ -48,7 +48,7 @@ To run the simulation, simply execute the generated binary:
 ```
 
 **CUDA Folder**
-In the CUDA folder there are three different version , which the final one named ising_simulation, which is the faster one. There is an implementation, called that tries to use shared memory, but it isn't the faster one.
+In the CUDA folder there are three different version , which the final one named ising_simulation, which is the faster one. There is an implementation, called CUDA_SM_01.cu, that tries to use shared memory, but it isn't the faster one.
 
 The program's output will display the simulation results, including the energy and magnetization of the system as at each temperature.
 
