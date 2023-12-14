@@ -2,9 +2,9 @@
 #include <cstdlib>
 #include <vector>
 #include <iostream>
-#include <fstream>
-#include <ctime>
+#include<fstream>
 #include <omp.h>
+#include <random>
 
 
 
@@ -13,7 +13,7 @@
 #define A 50//Block side lenght
 #define J 1.00
 #define IT 6*1e8//number of iterations
-#define CHUNKSIZE 1e6
+#define CHUNKSIZE 1e5
 
 
 void print_lattice(std::vector<int>& lattice) {
@@ -57,51 +57,46 @@ float evaluate(std::vector<int>& lattice) {
 
 int atomicflip(std::vector <int> & lattice, std::vector<float>& prob, int site) {
     int sum = 0;
-    int spin;
     if (site < L) {
-        spin = lattice[site+L*(L-1)];
         sum += lattice[site+L*(L-1)];
     }
     else {
-        spin = lattice[site-L];
         sum += lattice[site-L];
     }
     if (site % L == 0) {
-        spin = lattice[site+(L-1)];
         sum += lattice[site + (L - 1)];
     }
     else {
-        spin = lattice[site-1];
         sum += lattice[site - 1];
     }
 
     if (site >= L*(L - 1)) {
-        spin = lattice[site-L*(L-1)];
         sum += lattice[site - L*(L-1)];
     }
     else {
-        spin = lattice[site+L];
         sum += lattice[site + L];
     }
     if ((site+1) % L == 0) {
-        spin = lattice[site-(L-1)];
         sum += lattice[site - (L-1)];
     }
     else {
-        spin = lattice[site+1];
         sum += lattice[site + 1];
     }
     int delta = 2*sum*lattice[site];
     if (delta <= 0) {
-#pragma omp atomic write
+#pragma omp critical
+        {
         lattice[site] = -lattice[site];
     }
+}
 
     else if (delta == 4) {
         float rnd = (rand() % 10000)/1e4;
         if (rnd < prob[0] ){
-#pragma omp atomic write
-            lattice[site] = -lattice[site];
+#pragma omp critical
+            {
+lattice[site] = -lattice[site];
+}
         }
         else{
             return 0;
@@ -110,8 +105,10 @@ int atomicflip(std::vector <int> & lattice, std::vector<float>& prob, int site) 
     else if (delta==8){
         float rnd = (rand() % 10000)/1e4;
         if (rnd < prob[1]) {
-#pragma omp atomic write
+#pragma omp critical
+            {
             lattice[site] = -lattice[site];
+        }
         }
         else{
             return 0;
@@ -242,7 +239,7 @@ float simulate(float T,std::vector <int> & lattice, std::vector<int> num_vect, c
     vector<int> t_axis(1);
     t_axis[0] = 0;
     //const int chunckSize = floor(IT/(NUMBLOCKS));
-#pragma omp parallel for num_threads(NUMBLOCKS) schedule(dynamic, (int)CHUNKSIZE)
+#pragma omp parallel for num_threads(NUMBLOCKS) schedule(static, (int)CHUNKSIZE)
     {
         for (unsigned long int i = 0; i < IT ; i++) {
 
@@ -309,37 +306,39 @@ const int setBlockSize(int dimSideBlock,std::vector<int>& tStart) {
 
 
 int main() {
-    srand(static_cast<unsigned int>(time(0)));
-    std::vector<int> lattice(N);
-    const int NUMBLOCKLINE = setBlockSize(A);
-    const int NUMTHREAD = NUMBLOCKLINE * NUMBLOCKLINE / 2;
-    std::cout << NUMTHREAD << " " << NUMBLOCKLINE << std::endl;
+    using namespace std;
+    vector<int> lattice(N);
+    vector<int> tStart;
+    vector<bool> boundary;
+    const int NUMBLOCKS = setBlockSize(A,tStart);
+    cout << NUMBLOCKS << endl;
     float energy = 0;
     int M = 0;
     initialize_lattice(lattice, energy, M);
     print_lattice(lattice);
-
     float T = 0.1;
-    std::vector<float> results(1);
+    vector<float> results(1);
     results[0] = 1;
 
-    std::vector<int> row_vect;
-    std::vector<int> col_vect;
-    create_rand_vect(row_vect, col_vect);
+    vector<int> n_vect;
+    create_rand_vect(n_vect,NUMBLOCKS,tStart,boundary);
 
-    time_t start, end;
-    time(&start);  // Start timing before simulation
 
+
+    
     while (T <= 0.2) {
-        results.push_back(simulate(T, lattice, energy, M, row_vect, col_vect, NUMTHREAD, NUMBLOCKLINE));
+
+        results.push_back(simulate(T, lattice, n_vect, NUMBLOCKS,boundary));
+
         print_lattice(lattice);
         T += 0.1;
-        std::cout << std::abs(results.back()) << std::endl;
-    }
 
-    time(&end);  // End timing after simulation
-    double elapsed = difftime(end, start);  // Calculate elapsed time
-    std::cout << "Elapsed time: " << elapsed << " seconds." << std::endl;
+
+        cout << abs(results.back()) << endl;
+    }
+   
 
     return 0;
+
 }
+
