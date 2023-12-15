@@ -255,7 +255,7 @@ float simulate(float T,std::vector <int> & lattice, std::vector<int> num_vect, c
                         //int flipingSite = tStart[omp_get_thread_num()] + r * L  + c;
                         //if (boundary[i]) {
                         int n = num_vect[i];
-                        if(n%A==0||(n+1)%A==0||n%(A*L)==0||(n+L)%(A*L)==0){
+                        if(n%A==0 && (n+1)%A==0 && n%(A*L)==0 && (n+L)%(A*L)==0){
                             atomicflip(lattice, prob, n);
                         } else {
                             flip(lattice, prob, n); //true è nero
