@@ -9,12 +9,12 @@
 #include "muParser.h"
 
 class MontIntegration {
-    public:
-        MontIntegration() = default;
+public:
+    MontIntegration() = default;
 
-    private:
-        double integral;
-        double variance;
+private:
+    double integral;
+    double variance;
 
     void integrate(std::shared_ptr<Shape> shape, long N) {
         int r,s;  //rank e size
@@ -26,6 +26,7 @@ class MontIntegration {
 
         const long points = N / s + (r < (N % s));
         std::vector<double> point(shape->getDimensions());
+        std::vector<double> sample;
 
         // Parser initialization
         mu::Parser p;
@@ -35,8 +36,8 @@ class MontIntegration {
         double sum_2= 0.0;
 
         #pragma omp parallel for num_threads(12) default(none) \
-            shared(shape, N, rank, p) \
-            reduction(+ : sum, sum_2) private(point)
+            shared(shape, N, r, p) \
+            reduction(+ : sum, sum_2) private(point, sample)
         for (int i = 0; i < points; ++i) {
             sample = shape->generateVector();
 
@@ -44,7 +45,7 @@ class MontIntegration {
                 std::string num_0 = "x";
                 std::string num = std::to_string(j);
                 num_0 = num_0 + num;
-                p.DefineVar(num_0, &point.at(j-1));
+                p.DefineVar(num_0, &sample.at(j));
             }
 
             auto fi = p.Eval();
