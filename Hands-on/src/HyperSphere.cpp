@@ -10,27 +10,27 @@ public:
         inFile >> function;
         inFile >> radius;
 
-        centre.reserve(n);
-        centre.resize(n);
+        center.reserve(n);
+        center.resize(n);
         bounds.reserve(n);
         bounds.resize(n);
 
-        if(radius == 0.)
+        if(radius == 0.0)
             exit(-1);
 
         for (int i = 0; i < nDimensions; ++i){
-            inFile >> centre.at(i);
-            bounds.at(i).x = centre.at(i) - radius;
-            bounds.at(i).y = centre.at(i) + radius;
+            inFile >> center.at(i);
+            bounds.at(i).x = center.at(i) - radius;
+            bounds.at(i).y = center.at(i) + radius;
         }
 
-        int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        engine.seed(rank);
+        int r; //rank
+        MPI_Comm_rank(MPI_COMM_WORLD, &r);
+        engine.seed(r);
 
         inFile.close();
 
-        if(rank == 0)
+        if(r == 0) 
             calculateNorma();
     }
     std::vector<double> generateVector() override{
@@ -38,14 +38,14 @@ public:
         point.reserve(n);
         point.resize(n);
 
-        sum = 0.;
+        sum = 0.0;
        
         #pragma omp parallel for reduction(+:sum)
 
             for (int j = 0; j < n; ++j){
                 std::uniform_real_distribution<double> distribution(bounds.at(j).x, bounds.at(j).y);
                 point.at(j) = distribution(engine);
-                sum += (point.at(j) - centre.at(j)) * (point.at(j) - centre.at(j));
+                sum += (point.at(j) - center.at(j)) * (point.at(j) - center.at(j));
             }
 
         if(sum <= radius * radius) {
@@ -55,17 +55,12 @@ public:
         return point;
     }
 
-    private:
-        double radius{};
-        std::vector<double> centre;
-        std::vector<std::pair<double, double>> bounds;
-
     void calculateNorma(){
         double volTotale = 1.;
 
         volTotale *= std::pow(radius, n);
         volTotale *= std::pow(M_PI, (n / 2.));
-        volTOtale /= std::tgamma((n / 2.) + 1);
+        volTotale /= std::tgamma((n / 2.) + 1);
 
         norma = volTotale;
     }
