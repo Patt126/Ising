@@ -1,31 +1,18 @@
-#include "Shape.hpp"
-#include <fstream>
-#include <cmath>
-#include <random>
-#include <string>
 #include <vector>
 #include <mpi.h>
 
-#ifndef HYPERSPHERE_HPP
-#define HYPERSPHERE_HPP
-
-using namespace std;
-
 class HyperSphere : public Shape {
-    struct Edges {
-        double x,y; 
-    }; 
+public:
+    HyperSphere(std::string inputFile);
+
+    double getRadius() const { return radius; }
+    std::vector<double> getCenter() const { return center; } 
 
 private:
-        double radius = 0.0; 
-        vector<double> center;
-        int n = 0;
-        double sum; 
+    double radius = 0.0;
+    std::vector<double> center;
+    std::vector<Edges> bounds;
+    double sum;
 
-public:
-    HyperSphere(string inputFile);
-
-    double
-        getRadius();
-
-#endif
+    void calculateNorma();
+};
