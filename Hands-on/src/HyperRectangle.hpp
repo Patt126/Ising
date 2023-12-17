@@ -10,12 +10,8 @@
 #include <mpi.h>
 
 class HyperRectangle : public Shape {
-    struct Edges {
-        double x;
-        double y;
-    };
-
 public:
-    HyperRectangle(std::string inputFile);
+    HyperRectangle(std::string filename);
+};
 
 #endif
