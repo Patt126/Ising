@@ -45,13 +45,20 @@ class HyperRectangle : public Shape{
     }
 
     private:
-        std::vector<std::pair<double, double>> bounds;
+        struct Edges {
+        double x;
+        double y;
+    };
+
+    std::vector<Edges> bounds;
+    std::string function;
 
     void calculateNorma() {
-        double volTotale = 1.;
+        double volTotale = norma;
+
         for(int i = 0; i < n; i++){
-        volTotale = volTotale * std::abs(bounds[i].x - bounds[i].y); 
+        volTotale *= std::abs(bounds[i].x - bounds[i].y); 
         }
-    norma = volTotale;
+        norma = volTotale;
     }
 }
