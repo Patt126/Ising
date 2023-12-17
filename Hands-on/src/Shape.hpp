@@ -11,7 +11,7 @@ class Shape {
 
        Shape()= default;
 
-       Shape(int nDim) : n(nDim);
+       Shape(int nDim) : n(nDim) {}
 
        virtual std::vector<double> generateVector() = 0;
        virtual void calculateNorma() = 0;
@@ -30,6 +30,11 @@ class Shape {
     std::string function {};
     std::vector<Edges> bounds;
     std::mt19937 engine;
-}
+    
+    struct Edges {
+        double x, 
+        double y;
+    };
+};
 
 #endif 
