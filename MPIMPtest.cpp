@@ -298,13 +298,14 @@ const int setBlockSize(int dimSideBlock,std::vector<int>& tStart) {
     return 0;
 }
 
-void test(){
-  int i = 1;
+int test(){
+  int k = 1;
   #pragma omp parallel for
   for int(i=0;i<10;i++){
     #pragma omp atomic
-    i++;
+    k++;
   }
+    return k;
 }
 
 
@@ -322,7 +323,7 @@ int main(int argc, char **argv) {
     int NUMBLOCKS = setBlockSize(A, tStart);
     float energy = 0;
     int M = 0;
-    test();
+    std::cout<<test()<<std::endl;
     // Root process initializes the lattice
     if (rank == 0) {
         unsigned seed = time(0);
