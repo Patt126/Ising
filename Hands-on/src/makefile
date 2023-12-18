@@ -1,8 +1,8 @@
 .PHONY: all
 all: main
 
-main: Shape.hpp HyperRectangle.cpp HyperSphere.cpp Montecarlo.cpp main.cpp
-	mpicc -I../muparser-2.3.4/include main.cpp -o main -L../muparser-2.3.4 -lmuparser -lstdc++ -lm -fopenmp -Wall
+main: main.cpp
+	mpicxx main.cpp -I../muparser/include -L../muparser/build -lmuparser -Wall -fopenmp
 
 .PHONY: clear
 clear:
