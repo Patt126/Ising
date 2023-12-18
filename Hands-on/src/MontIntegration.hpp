@@ -1,3 +1,5 @@
+#pragma once
+
 #include <functional>
 #include <vector>
 #include <iostream>
@@ -16,6 +18,7 @@ private:
     double integral;
     double variance;
 
+public:
     void integrate(std::shared_ptr<Shape> shape, long N) {
         int r,s;  //rank e size
 
@@ -36,7 +39,7 @@ private:
         double sum_2= 0.0;
 
         #pragma omp parallel for num_threads(12) default(none) \
-            shared(shape, N, r, p) \
+            shared(shape, N, r, p, points) \
             reduction(+ : sum, sum_2) private(point, sample)
         for (int i = 0; i < points; ++i) {
             sample = shape->generateVector();
