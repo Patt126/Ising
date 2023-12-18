@@ -18,7 +18,20 @@ muparser - fast math parser library
 
 .. image:: http://beltoforion.de/en/muparser/images/title.webp 
 
-Change Notes for Revision 2.3.4  
+Change Notes for Revision 2.3.5
+===========================
+
+Fixed Compiler Warnings:
+-----------
+- fix problem with IntelLLVM fast math
+
+Build System:  
+------------
+- fix for https://github.com/beltoforion/muparser/issues/127 (minimum required cmake version set to 3.15)
+- fix for https://github.com/beltoforion/muparser/issues/123 (Strange behavior of the postfix operator on macOS
+- fix for https://github.com/beltoforion/muparser/issues/132 example1 fails to builds on Windows with mingw gcc
+
+Change Notes for Revision 2.3.4
 ===========================
 
 Maintainance Release with updates of the cmake build system.
