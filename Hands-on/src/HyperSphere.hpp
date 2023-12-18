@@ -1,3 +1,11 @@
+#ifndef HYPERSPHERE_HPP
+#define HYPERSPHERE_HPP
+
+#include "Shape.hpp"
+#include <fstream>
+#include <cmath>
+#include <random>
+#include <string>
 #include <vector>
 #include <mpi.h>
 
@@ -16,3 +24,5 @@ private:
 
     void calculateNorma();
 };
+
+#endif
