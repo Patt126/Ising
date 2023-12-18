@@ -2,10 +2,10 @@
 #include <iostream>
 #include <fstream>
 #include <chrono>
-#include "MontIntegration.cpp"
+#include "MontIntegration.hpp"
 #include "Shape.hpp"
-#include "HyperRectangle.cpp"
-#include "HyperSphere.cpp"
+#include "HyperRectangle.hpp"
+#include "HyperSphere.hpp"
 #include <mpi.h>
 #include "muParser.h"
 
