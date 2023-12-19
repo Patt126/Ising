@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
                   << "Estimated error: " << std::sqrt(montIntegration.getVariance()) << std::endl
                   << "Target error: " << montIntegration.getIntegral() / std::sqrt(N) << std::endl
                   << "Shape dimension: " << shape->getDimensions() << std::endl
-                  << "Shape volume: " << shape->getNorma() << std::endl
+                  << "Shape volume: " << shape->getNorm() << std::endl
                   << "Elapsed time: " << elapsed_seconds.count() << " s" << std::endl;
     }
 
