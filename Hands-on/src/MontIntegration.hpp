@@ -62,8 +62,8 @@ public:
         MPI_Reduce(&sum_2, &sumTot_2, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
         if (r == 0) {
-            integral = shape->getNorma() * sumTot / N;
-            variance = shape->getNorma() * shape->getNorma() * ((sumTot_2 - (sumTot * sumTot) / N) / (N - 1)) / N;
+            integral = shape->getNorm() * sumTot / N;
+            variance = shape->getNorm() * shape->getNorm() * ((sumTot_2 - (sumTot * sumTot) / N) / (N - 1)) / N;
 
             }
     };
