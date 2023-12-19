@@ -49,24 +49,22 @@ class HyperSphere : public Shape {
     point.reserve(n);
     point.resize(n);
 
-    // Crea il generatore con distribuzione in [0, 1]
+    // Creare il generatore con distribuzione in [0, 1]
     std::uniform_real_distribution<double> distribution(0.0, 1.0);
     std::vector<double> sample(n);
 
-    // Genera il vettore con numeri casuali nel range [0, 1]
+    // Generare il vettore con numeri casuali nel range [0, 1]
     for (int j = 0; j < n; ++j) {
         sample[j] = distribution(engine);
     }
 
-    // Effettua la trasformazione lineare per scalare nel range desiderato
+    // Effettuare la trasformazione lineare per scalare nel range desiderato
     for (int j = 0; j < n; ++j) {
       point[j] = bounds.at(j).x + (bounds.at(j).y - bounds.at(j).x) * sample[j];
     }
 
-    // Inizializza sum
+    // Calcolare sum
     double sum = 0.0;
-
-    // Calcola la somma
     #pragma omp parallel for reduction(+ : sum)
     for (int j = 0; j < n; ++j) {
       sum += (point.at(j) - center.at(j)) * (point.at(j) - center.at(j));
@@ -83,6 +81,7 @@ class HyperSphere : public Shape {
   double radius = 0.0;
   std::vector<double> center;
   std::vector<Edges> bounds;
+  double sum;
 
   void calculateNorm() {
     double volTotale = 1.;
