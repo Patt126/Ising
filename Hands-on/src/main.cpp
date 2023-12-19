@@ -46,9 +46,19 @@ int main(int argc, char** argv) {
             return -1;
     }
 
+    // Impostazione dinamica del numero di thread
+    int num_threads = omp_get_max_threads();
+    omp_set_num_threads(num_threads);
+
     // Measure execution time
     auto start = std::chrono::system_clock::now();
-    montIntegration.integrate(shape, N);
+
+    // Regione parallela
+    #pragma omp parallel
+    {
+        montIntegration.integrate(shape, N);
+    }
+    
     auto end = std::chrono::system_clock::now();
 
     std::chrono::duration<double> elapsed_seconds = end - start;
