@@ -55,7 +55,7 @@ class HyperSphere : public Shape {
 
     for (int j = 0; j < n; ++j) {
       std::uniform_real_distribution<double> distribution(bounds.at(j).x, bounds.at(j).y);
-      point.at(j) = distribution(engine);
+      point.push_back(distribution(engine));
       sum += (point.at(j) - center.at(j)) * (point.at(j) - center.at(j));
     }
 
