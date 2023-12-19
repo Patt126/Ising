@@ -42,7 +42,7 @@ class HyperSphere : public Shape {
 
     inFile.close();
 
-    if (r == 0) calculateNorma();
+    if (r == 0) calculateNorm();
   }
   std::vector<double> generateVector() override {
     std::vector<double> point;
@@ -72,14 +72,14 @@ class HyperSphere : public Shape {
   std::vector<Edges> bounds;
   double sum;
 
-  void calculateNorma() {
+  void calculateNorm() {
     double volTotale = 1.;
 
-    volTotale *= std::pow(radius, n);
-    volTotale *= std::pow(M_PI, (n / 2.));
-    volTotale /= std::tgamma((n / 2.) + 1);
+    volTotal *= std::pow(radius, n);
+    volTotal *= std::pow(M_PI, (n / 2.));
+    volTotal /= std::tgamma((n / 2.) + 1);
 
-    norma = volTotale;
+    norm = volTotal;
   }
 };
 
