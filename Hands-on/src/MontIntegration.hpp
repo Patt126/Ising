@@ -7,6 +7,7 @@
 #include <random>
 #include <string>
 #include <mpi.h>
+#include <omp.h>
 #include "Shape.hpp"
 #include "muParser.h"
 
