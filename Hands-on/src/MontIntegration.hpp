@@ -37,9 +37,13 @@ public:
         double sum = 0.0;
         double sum_2= 0.0;
 
-        #pragma omp parallel for num_threads(12) default(none) \
+        // Impostazione dinamica del numero di thread
+        int num_threads = omp_get_max_threads();
+        omp_set_num_threads(num_threads);
+
+        #pragma omp parallel for num_threads(num_threads) default(none) \
             shared(shape, N, r, p, points) \
-            reduction(+ : sum, sum_2) private(point, sample)
+            reduction(+ : sum, sum_2) private(point)
         for (int i = 0; i < points; ++i) {
             point = shape->generateVector();
 
