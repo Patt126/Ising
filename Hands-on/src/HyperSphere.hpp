@@ -31,9 +31,9 @@ class HyperSphere : public Shape {
     if (radius == 0.0) exit(-1);
 
     for (int i = 0; i < n; ++i) {
-      inFile >> center.at(i);
-      bounds.at(i).x = center.at(i) - radius;
-      bounds.at(i).y = center.at(i) + radius;
+      inFile >> center[i];
+      bounds[i].x = center[i] - radius;
+      bounds[i].y = center[i] + radius;
     }
 
     int r;  // rank
@@ -60,14 +60,14 @@ class HyperSphere : public Shape {
 
     // Effettuare la trasformazione lineare per scalare nel range desiderato
     for (int j = 0; j < n; ++j) {
-      point[j] = bounds.at(j).x + (bounds.at(j).y - bounds.at(j).x) * sample[j];
+      point[j] = bounds[j].x + (bounds[j].y - bounds[j].x) * sample[j];
     }
 
     // Calcolare sum
     double sum = 0.0;
     #pragma omp parallel for reduction(+ : sum)
     for (int j = 0; j < n; ++j) {
-      sum += (point.at(j) - center.at(j)) * (point.at(j) - center.at(j));
+      sum += (point[j] - center[j]) * (point[j] - center[j]);
     }
 
     if (sum <= radius * radius) {
