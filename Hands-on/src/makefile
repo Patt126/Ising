@@ -1,9 +1,18 @@
-.PHONY: all
-all: main
+CXX = mpicxx
+CXXFLAGS = -I../muparser/include -L../muparser/build -lmuparser -Wall -fopenmp
+SRC = main.cpp MontIntegration.hpp Shape.hpp HyperRectangle.hpp HyperSphere.hpp MontIntegration.hpp
+OBJ = $(SRC:.cpp=.o)
+EXEC = main
 
-main: main.cpp
-	mpicxx main.cpp -I../muparser/include -L../muparser/build -lmuparser -Wall -fopenmp
+.PHONY: all clean
 
-.PHONY: clear
-clear:
-	rm -f main
+all: $(EXEC)
+
+$(EXEC): $(OBJ)
+	$(CXX) $(OBJ) -o $(EXEC) $(CXXFLAGS)
+
+%.o: %.cpp
+	$(CXX) -c $< -o $@ $(CXXFLAGS)
+
+clean:
+	rm -f $(OBJ) $(EXEC)
