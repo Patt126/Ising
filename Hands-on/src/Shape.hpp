@@ -18,17 +18,17 @@ class Shape {
   Shape(int nDim) : n(nDim) {}
 
   virtual std::vector<double> generateVector() = 0;
-  virtual void calculateNorma() = 0;
+  virtual void calculateNorm() = 0;
 
   int getDimensions() const { return n; }
-  double getNorma() const { return norma; }
+  double getNorm() const { return norm; }
   std::vector<double> getPoint() const { return point; }
   std::vector<Edges> get_bounds() const { return bounds; }
   const std::string getFunction() const { return function; }
 
  protected:
   int n{};
-  double norma{};
+  double norm{};
   std::vector<double> point{};
   std::string function{};
   std::vector<Edges> bounds;
