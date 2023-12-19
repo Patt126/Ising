@@ -38,7 +38,7 @@ public:
 
         inFile.close();
 
-        if (rank == 0) calculateNorma();
+        if (rank == 0) calculateNorm();
     }
 
     std::vector<double> generateVector() override {
@@ -58,13 +58,13 @@ private:
     std::vector<Edges> bounds;
     std::string function;
 
-    void calculateNorma() {
-        double volTotale = norma;
+    void calculateNorm() {
+        double volTotal = norm;
 
         for (int i = 0; i < n; i++) {
-            volTotale *= std::abs(bounds[i].x - bounds[i].y);
+            volTotal *= std::abs(bounds[i].x - bounds[i].y);
         }
-        norma = volTotale;
+        norm = volTotal;
     }
 };
 
