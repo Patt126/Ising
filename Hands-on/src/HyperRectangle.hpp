@@ -26,10 +26,10 @@ public:
         int i;
 
         for (i = 0; i < n; i++) {
-            inFile >> bounds.at(i).x >> bounds.at(i).y;
-            if (bounds.at(i).x == bounds.at(i).y) exit(-1);
-            if (bounds.at(i).x > bounds.at(i).y)
-                std::swap(bounds.at(i).x, bounds.at(i).y);
+            inFile >> bounds[i].x >> bounds[i].y;
+            if (bounds[i].x == bounds[i].y) exit(-1);
+            if (bounds[i].x > bounds[i].y)
+                std::swap(bounds[i].x, bounds[i].y);
         }
 
         int rank;
@@ -47,7 +47,7 @@ public:
         point.resize(n);
 
         for (int j = 0; j < n; ++j) {
-            std::uniform_real_distribution<double> distribution(bounds.at(j).x, bounds.at(j).y);
+            std::uniform_real_distribution<double> distribution(bounds.[j].x, bounds[j].y);
             point.push_back(distribution(engine));
         }
 
