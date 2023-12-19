@@ -29,7 +29,6 @@ public:
 
         const long points = N / s + (r < (N % s));
         std::vector<double> point(shape->getDimensions());
-        std::vector<double> sample;
 
         // Parser initialization
         mu::Parser p;
@@ -42,13 +41,13 @@ public:
             shared(shape, N, r, p, points) \
             reduction(+ : sum, sum_2) private(point, sample)
         for (int i = 0; i < points; ++i) {
-            sample = shape->generateVector();
+            point = shape->generateVector();
 
             for (int j = 0; j < shape->getDimensions(); ++j) {
                 std::string num_0 = "x";
                 std::string num = std::to_string(j);
                 num_0 = num_0 + num;
-                p.DefineVar(num_0, &sample.at(j));
+                p.DefineVar(num_0, &point.at(j));
             }
 
             auto fi = p.Eval();
