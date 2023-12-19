@@ -52,12 +52,8 @@ int main(int argc, char** argv) {
 
     // Measure execution time
     auto start = std::chrono::system_clock::now();
-
-    // Regione parallela
-    #pragma omp parallel
-    {
-        montIntegration.integrate(shape, N);
-    }
+    
+    montIntegration.integrate(shape, N);
     
     auto end = std::chrono::system_clock::now();
 
