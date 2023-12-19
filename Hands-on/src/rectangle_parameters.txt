@@ -1,5 +1,0 @@
-3  // Number of dimensions
-x0  // Function
-0.0 1.0  // Limits for the first dimension
-2.0 3.0  // Limits for the second dimension
--1.0 1.0 // Limits for the third dimension
