@@ -14,7 +14,7 @@
 #define L 1000
 #define N (L*L)
 #define J 1.00
-#define IT 2*1e9 //number of iterations
+#define IT 8*1e2 //number of iterations
 
 void print_lattice(std::vector <int> & lattice) {
 
