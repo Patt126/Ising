@@ -301,7 +301,7 @@ const int setBlockSize(int dimSideBlock,std::vector<int>& tStart) {
 int test(){
   int k = 1;
   #pragma omp parallel for
-  for int(i=0;i<10;i++){
+  for (int i=0;i<10;i++){
     #pragma omp atomic
     k++;
   }
