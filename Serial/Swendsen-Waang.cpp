@@ -14,8 +14,152 @@
 #define J 1.00
 #define IT 2*1e9
 
-void initialize_lattice(std::vector<int>& lattice, float& energy, int& M);
-void print_lattice(const std::vector<int>& lattice);
+void print_lattice(std::vector <int> & lattice) {
+
+    int i;
+    for (i = 0; i < N; i++) {
+        if(i%L == 0) std::cout<<std::endl;
+        if (lattice[i] == -1) {
+            std::cout << "o" << " ";
+        } else {
+            std::cout << "x" << " ";
+
+
+        }
+    }
+    std::cout<<std::endl;
+}
+
+//if needed function to correctly evaluate energy
+float evaluate(std::vector<int>& lattice) {
+    int sum=0;
+    for (int i=0;i<N;i++){
+        //energy contibute
+        if (i >= L) { //NO FIRST ROW
+            sum += lattice[i - L]*lattice[i]*2;
+        }
+        if (i%L != 0) { //NO FIRST COLUMN
+            sum += lattice[i-1]*lattice[i]*2;
+        }
+
+        if(i >= L*(L - 1)) { //LAST ROW
+            sum += lattice[i-L*(L-1)]*lattice[i]*2; //times 2 two count also contribute where i = 0
+        }
+        if((i + 1) % L  == 0) { //LAST COLUMN
+            sum += lattice[i-(L-1)]*lattice[i]*2;
+        }
+        }
+    return -J*sum;
+    }
+
+void flip(std::vector <int> & lattice, std::vector<float>& prob,float& energy, int& M, int n) {
+
+	int sum = 0;
+
+	if (n < L) {
+		sum += lattice[n+L*(L-1)];
+	}
+	else {
+		sum += lattice[n-L];
+	}
+	if (n % L == 0) {
+		sum += lattice[n + (L - 1)];
+	}
+	else {
+		sum += lattice[n - 1];
+	}
+
+	if (n >= L*(L - 1)) {
+		sum += lattice[n - L*(L-1)];
+	}
+	else {
+		sum += lattice[n + L];
+	}
+	if ((n+1) % L == 0) {
+		sum += lattice[n - (L-1)];
+	}
+	else {
+		sum += lattice[n + 1];
+	}
+    int delta = 2*sum*lattice[n];
+	if (delta <= 0) {
+        lattice[n] = -lattice[n];
+	}
+	else if (delta == 4) {
+        float rnd = (rand() % 10000)/1e4;
+		if (rnd < prob[0] ){
+            lattice[n] = -lattice[n];
+		}
+        else{
+            return;
+        }
+	}
+	else if (delta==8){
+        float rnd = (rand() % 10000)/1e4;
+		if (rnd < prob[1]) {
+            lattice[n] = -lattice[n];
+		}
+        else{
+            return;
+        }
+	}
+
+	energy += 2*delta*J;
+    M += 2*lattice[n];
+
+}
+
+void initialize_lattice(std::vector<int>& lattice, float& energy, int& M) {
+	int k;
+	int size = N;
+    int sum = 0;
+	for (int i = 0; i < size; i++) {
+        k = rand() % 2;
+        if (k == 0) {
+            lattice[i] = -1;
+            M -= 1;
+        }
+        else {
+            lattice[i] = 1;
+            M += 1;
+			}
+            //energy contibute
+            if (i >= L) { //NO FIRST ROW
+                sum += lattice[i - L]*lattice[i]*2;
+            }
+            if (i%L != 0) { //NO FIRST COLUMN
+                sum += lattice[i-1]*lattice[i]*2;
+            }
+
+            if(i >= L*(L - 1)) { //LAST ROW
+                sum += lattice[i-L*(L-1)]*lattice[i]*2; //times 2 two count also contribute where i = 0
+            }
+            if((i + 1) % L  == 0) { //LAST COLUMN
+                sum += lattice[i-(L-1)]*lattice[i]*2;
+            }
+
+		}
+    energy+= -J*sum;
+	}
+
+
+
+
+
+
+int write_file(std::vector<float>& energy_vec, std::vector<float>& m, std::vector<int>& t){
+    std::ofstream myfile ("data.txt");
+    if (myfile.is_open())
+    {
+        for(int i = 0; i < t.size(); i ++){
+            myfile << energy_vec[i] << " "<<abs(m[i])<<' '<<t[i]<<'\n';
+        }
+        myfile.close();
+    }
+    else std::cout << "Unable to open file";
+    return 0;
+}
+
 
 int find_set(int x, std::vector<int>& parent) {
     if (x != parent[x]) {
