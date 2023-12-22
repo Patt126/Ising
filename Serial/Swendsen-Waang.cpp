@@ -9,10 +9,10 @@
 #include <queue>
 #include <map>
 
-#define L 1000
+#define L 100
 #define N (L*L)
 #define J 1.00
-#define IT 2*1e9
+#define IT 2*1e3
 
 void print_lattice(std::vector <int> & lattice) {
 
