@@ -14,7 +14,7 @@
 #define J 1.00
 #define IT 2*1e3
 
-//It must be tested more extensiveley
+//It must be tested more extensiveley. Chronometers time doesn0t seemtobe accurate of the time taken by the whole simulation.
 
 void print_lattice(std::vector <int> & lattice) {
 
