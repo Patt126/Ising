@@ -32,6 +32,14 @@ void print_lattice(std::vector <int> & lattice) {
     std::cout<<std::endl;
 }
 
+void create_rand_vect(std::vector<int>& rand_vect_0) {
+    int i;
+    for (i = 0; i < IT; i++) {
+        rand_vect_0.push_back(rand() % N );
+    }
+}
+
+
 //if needed function to correctly evaluate energy
 float evaluate(std::vector<int>& lattice) {
     int sum=0;
