@@ -14,6 +14,8 @@
 #define J 1.00
 #define IT 2*1e3
 
+//It must be tested more extensiveley
+
 void print_lattice(std::vector <int> & lattice) {
 
     int i;
