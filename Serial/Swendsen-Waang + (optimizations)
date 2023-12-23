@@ -11,10 +11,10 @@
 #include <numeric>
 
 
-#define L 100
+#define L 1000
 #define N (L*L)
 #define J 1.00
-#define IT 5*1e4
+#define IT 1*1e2
 
 //It must be tested more extensiveley
 
