@@ -6,7 +6,7 @@ This project implements the Ising model simulation using C++ and offers parallel
 
 - 2D Ising Model simulation with periodic boundary conditions.
 - Serial computation with C++ with three differend algorithms, Metropolis-Hastings, Wolff and Swendesn-Wang
-- Hybrid parallel computation utilizing MPI, OpenMP, and CUDA.
+- (Hybrid) parallel computation utilizing MPI, OpenMP, and CUDA.
 - Configurable parameters such as lattice size, temperature range, and number of iterations.
 - Analysis of physical properties like total energy and magnetization.
 
