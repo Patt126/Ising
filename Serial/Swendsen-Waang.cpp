@@ -9,10 +9,10 @@
 #include <queue>
 #include <map>
 
-#define L 100
+#define L 1000
 #define N (L*L)
 #define J 1.00
-#define IT 2*1e3
+#define IT 1*1e2
 
 //It must be tested more extensiveley. Chronometers time doesn0t seemtobe accurate of the time taken by the whole simulation.
 
