@@ -15,7 +15,7 @@ This project implements the Ising model simulation using C++ and offers parallel
 - C++ Compiler with C++17 or later support.
 - OpenMP for multicore CPU parallelization.
 - MPI implementation (e.g., MPICH or OpenMPI) for distributed system parallelization.
-- CUDA Toolkit and NVIDIA GPU for GPU-accelerated execution.
+- CUDA Toolkit and NVIDIA GPU for GPU-accelerated execution. The Code has been developed and tested with CUDA compute capability higher than 6.1 and CUDA version higher than 11.
 
 ## Building the Simulation
 
@@ -55,7 +55,7 @@ Replace `<number_of_processes>` with the desired number of MPI processes.
 
 - The MPI version of the simulation is designed for distributed systems and can be run on multiple nodes or processors.
 - Ensure MPI is correctly installed and configured on your system or computing cluster.
-- The MPI version can be combined with OpenMP to leverage multi-threading on each node in addition to distributed computing.
+- The MPI version can be combined with OpenMP to leverage multi-threading on each node in addition to distributed computing. 
 
 ## Notes on CUDA Folder
 
