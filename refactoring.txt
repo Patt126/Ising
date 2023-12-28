@@ -1,0 +1,3 @@
+use constexpr for gloabal variable that can be computed at compiler time
+
+use std::array<type,N> for vector with known size
