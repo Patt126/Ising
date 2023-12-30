@@ -12,10 +12,10 @@
 #include <random>
 #include <omp.h>
 
-#define L 100
+#define L 1000
 #define N (L*L)
 #define J 1.00
-#define IT 1*1e2
+#define IT 20
 
 void print_lattice(std::vector <int>& lattice) {
 
@@ -257,6 +257,10 @@ float simulate(float T, std::vector<int>& lattice, float& energy, int& M, std::v
     }
     return m.back();
 }
+float calculate_magnetization_per_site(const std::vector<int>& lattice) {
+    int total_spin = std::accumulate(lattice.begin(), lattice.end(), 0);
+    return static_cast<float>(total_spin) / N;
+}
 
 int main() {
     using namespace std;
@@ -269,23 +273,24 @@ int main() {
     vector<float> results(1, 1);
     vector<int> rand_vect;
     create_rand_vect(rand_vect);
-    print_lattice(lattice);
+    //print_lattice(lattice);
     auto start = chrono::high_resolution_clock::now();
 
     while (T <= 0.2) {
         results.push_back(simulate(T, lattice, energy, M, rand_vect));
         T += 0.1;
-        print_lattice(lattice);
+        //print_lattice(lattice);
         cout << "Magnetization: " << abs(results.back()) << endl;
     }
 
     auto end = chrono::high_resolution_clock::now();
     chrono::duration<double> elapsed = end - start;
-
     cout << "Time taken for simulation: " << elapsed.count() << " seconds" << endl;
-
-    // Print the maximum number of threads
     cout << "Maximum number of threads used: " << omp_get_max_threads() << endl;
+
+    // Calculate and print the magnetization per site
+    float magnetization_per_site = calculate_magnetization_per_site(lattice);
+    cout << "Magnetization per site: " << magnetization_per_site << endl;
 
     return 0;
 }
