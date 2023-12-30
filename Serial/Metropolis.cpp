@@ -5,15 +5,19 @@
 #include<fstream>
 #include<ctime>
 #include <chrono>
+#include <omp.h>
+#include <random>
 
 
 
-#define L 1000
-#define N (L*L)
-#define J 1.00
-#define IT 2*1e9 //number of iterations
+constexpr int L = 100  ;
+constexpr int N = (L*L);
+constexpr int J = 1.00;
 
-void print_lattice(std::vector <int> & lattice) {
+
+
+
+void print_lattice(std::array<int,N>& lattice) {
 
     int i;
     for (i = 0; i < N; i++) {
@@ -29,8 +33,9 @@ void print_lattice(std::vector <int> & lattice) {
     std::cout<<std::endl;
 }
 
+
 //if needed function to correctly evaluate energy
-float evaluate(std::vector<int>& lattice) {
+float evaluate(std::array<int,N>& lattice) {
     int sum=0;
     for (int i=0;i<N;i++){
         //energy contibute
@@ -47,72 +52,71 @@ float evaluate(std::vector<int>& lattice) {
         if((i + 1) % L  == 0) { //LAST COLUMN
             sum += lattice[i-(L-1)]*lattice[i]*2;
         }
-        }
+    }
     return -J*sum;
+}
+
+void flip(std::array <int,N> & lattice, std::array<float,2>& prob, int site, int& M, int& E ) {
+
+    int sum = 0;
+
+    if (site < L) {
+        sum += lattice[site+L*(L-1)];
+    }
+    else {
+        sum += lattice[site-L];
+    }
+    if (site % L == 0) {
+        sum += lattice[site + (L - 1)];
+    }
+    else {
+        sum += lattice[site - 1];
     }
 
-void flip(std::vector <int> & lattice, std::vector<float>& prob,float& energy, int& M, int n) {
+    if (site >= L*(L - 1)) {
+        sum += lattice[site - L*(L-1)];
+    }
+    else {
+        sum += lattice[site + L];
+    }
+    if ((site+1) % L == 0) {
+        sum += lattice[site - (L-1)];
+    }
+    else {
+        sum += lattice[site + 1];
+    }
+    int delta = 2*sum*lattice[site];
+    if (delta <= 0) {
+        lattice[site] = -lattice[site];
+    }
 
-	int sum = 0;
-
-	if (n < L) {
-		sum += lattice[n+L*(L-1)];
-	}
-	else {
-		sum += lattice[n-L];
-	}
-	if (n % L == 0) {
-		sum += lattice[n + (L - 1)];
-	}
-	else {
-		sum += lattice[n - 1];
-	}
-
-	if (n >= L*(L - 1)) {
-		sum += lattice[n - L*(L-1)];
-	}
-	else {
-		sum += lattice[n + L];
-	}
-	if ((n+1) % L == 0) {
-		sum += lattice[n - (L-1)];
-	}
-	else {
-		sum += lattice[n + 1];
-	}
-    int delta = 2*sum*lattice[n];
-	if (delta <= 0) {
-        lattice[n] = -lattice[n];
-	}
-	else if (delta == 4) {
+    else if (delta == 4) {
         float rnd = (rand() % 10000)/1e4;
-		if (rnd < prob[0] ){
-            lattice[n] = -lattice[n];
-		}
-        else{
-            return;
+        if (rnd < prob[0] ){
+            lattice[site] = -lattice[site];
         }
-	}
-	else if (delta==8){
+        else{
+            return ;
+        }
+    }
+    else if (delta==8){
         float rnd = (rand() % 10000)/1e4;
-		if (rnd < prob[1]) {
-            lattice[n] = -lattice[n];
-		}
-        else{
-            return;
+        if (rnd < prob[1]) {
+            lattice[site] = -lattice[site];
         }
-	}
-
-	energy += 2*delta*J;
-    M += 2*lattice[n];
+        else{
+            return ;
+        }
+    }
+    M += 2*lattice[site];
 
 }
 
-void initialize_lattice(std::vector<int>& lattice, float& energy, int& M) {
-	int k;
-	int size = N;
+void initialize_lattice(std::array<int,N>& lattice, int& energy, int& M) {
+    int k;
+    int size = N;
     int sum = 0;
-	for (int i = 0; i < size; i++) {
+    for (int i = 0; i < size; i++) {
         k = rand() % 2;
         if (k == 0) {
             lattice[i] = -1;
@@ -121,25 +125,27 @@ void initialize_lattice(std::vector<int>& lattice, float& energy, int& M) {
         else {
             lattice[i] = 1;
             M += 1;
-			}
-            //energy contibute
-            if (i >= L) { //NO FIRST ROW
-                sum += lattice[i - L]*lattice[i]*2;
-            }
-            if (i%L != 0) { //NO FIRST COLUMN
-                sum += lattice[i-1]*lattice[i]*2;
-            }
+        }
+        //energy contibute
+        if (i >= L) { //NO FIRST ROW
+            sum += lattice[i - L]*lattice[i]*2;
+        }
+        if (i%L != 0) { //NO FIRST COLUMN
+            sum += lattice[i-1]*lattice[i]*2;
+        }
 
-            if(i >= L*(L - 1)) { //LAST ROW
-                sum += lattice[i-L*(L-1)]*lattice[i]*2; //times 2 two count also contribute where i = 0
-            }
-            if((i + 1) % L  == 0) { //LAST COLUMN
-                sum += lattice[i-(L-1)]*lattice[i]*2;
-            }
+        if(i >= L*(L - 1)) { //LAST ROW
+            sum += lattice[i-L*(L-1)]*lattice[i]*2; //times 2 two count also contribute where i = 0
+        }
+        if((i + 1) % L  == 0) { //LAST COLUMN
+            sum += lattice[i-(L-1)]*lattice[i]*2;
+        }
 
-		}
+    }
     energy+= -J*sum;
-	}
+}
+
+
 
 
 
@@ -161,75 +167,116 @@ int write_file(std::vector<float>& energy_vec, std::vector<float>& m, std::vecto
 
 
 
-float simulate(float T,std::vector <int> & lattice, float& energy, int& M,std::vector<int>& rand_vect) {
+void simulate(std::array<float,2> prob, std::array <int,N> & lattice, std::array<int,N> randomVect, int& M ,int& E ) {
 
-	using namespace std;
-    vector<float> prob(2);
-	prob[0] = exp(-4 * J/T);
-    prob[1] = exp(-8 * J/T);
+    
+        for (unsigned long int i = 0; i < (N); i++) {
+                //first term is first site in our block
+                // shift = column*NUMTHREAD + row*NUMBLOCKLINE*NUMTHREAD due to current htread work
+                //int r = num_vect[i], c = block_vect[i];
+                //int flipingSite = tStart[omp_get_thread_num()] + r * L  + c;
+                //if (boundary[i]) {
+                int n = randomVect[i];
+                if (n != -1) {
+                    flip(lattice, prob, n , M, E);
+                }
+            }
+        
 
-	vector<float> energy_vec(1);
-    energy_vec[0] =  energy;
+    
+}
 
-    vector<float> m(1);
-    m[0] = (float)M/N;
-	vector<int> t_axis(1);
-    t_axis[0] = 0;
-    int n;
-	for (int i = 1; i < IT; i++){
-        n = rand_vect[i];
-		flip(lattice, prob, energy, M, n);
-        if (i % N == 0) {
-            // aggiornare l'energia e la magnetizzazione ogni N step (definizione di tempo nel metropolis come da libro)
-            m.push_back((float) M / N); // magnetizzazione media per sito
-            energy_vec.push_back(energy);
-            t_axis.push_back(i / N);
 
+
+void create_rand_vect(std::array<int,N> &rand_vect) {
+    //  N/NUMBLOCKS is the number of iteration for each task
+    for (int j = 0;j<N;j++) {
+        rand_vect[j] = rand()%N;
         }
+}    
 
-	}
-    return m.back();
-}
 
-void create_rand_vect(std::vector<int>& rand_vect_0) {
-    int i;
-    for (i = 0; i < IT; i++) {
-        rand_vect_0.push_back(rand() % N );
+
+
+//Evaluate exact equilibrium value of per site magnetization from Onsager's formula for 2D case
+float Mexact(float T){
+    return std::pow((1.0 - std::pow(std::sinh(2 * J / T), -4)), 1.0 / 8.0);
     }
-}
+     
 
+void translateMatrix( std::array<int,N>& inputMatrix) {
+//#pragma omp parallel for num_threads(16) schedule(static, (int)CHUNKSIZE)
+        int* localCopy = new int[N];
+        std::memcpy(localCopy, inputMatrix.data(), N * sizeof(int));
+        for (int i = 0; i < N; ++i) {
+            // Check if the new indices are within bounds
+            if ((i + L) < N) { //we are not moving last row
+                if ((i + 1) % L != 0) //We are not in last column
+                    inputMatrix[i + L + 1] = localCopy[i];
+                else { //if we are in last column but not last row put element at the beginning of new row
+                    inputMatrix[i + 1] = localCopy[i];
+                }
+            } else if ((i + 1) % L != 0) //We are not in last column of last row
+            {
+                // If out of bounds, put the element at the beginning
+                inputMatrix[i + L + 1 - N] = localCopy[i]; //+1 to translate col -N to move to first row
+            } else {//edge
+                inputMatrix[0] = localCopy[i];
+            }
+        }
+        delete[] localCopy;
 
+    }
 
 
 int main() {
-    using namespace std;
     unsigned seed = time(0);
     srand(seed);
-    vector<int> lattice(N);
-    float energy = 0;
-    int M =0;
-    initialize_lattice(lattice,energy,M);
-    float T = 0.1;
-    vector<float> results (1);
-    results[0] = 1;
+    std::array<int,N> lattice;
+ 
 
-    std::vector<int> rand_vect;
-    create_rand_vect(rand_vect);
+    int E = 0;
+    int M = 0;
+    float m = 0;
+    float mExact = 1;
+    initialize_lattice(lattice, E, M);
     print_lattice(lattice);
+    float T = 0.1;
+  
+
+    float error = 0;
+
+    const double tollerance = 0.001; // tollerance of a 0.1% not aligned spin
+    int step = 0;
     auto start = std::chrono::high_resolution_clock::now();  // Start timing before simulation
-    while(T<=0.2){
+    std::array<float,2> prob;
+    std::array<int,N> random;
 
-        results.push_back(simulate(T,lattice,energy,M,rand_vect));
+            
+    while (T < 0.2) {
+        
+        prob[0] = exp(-4 * J / T);
+        prob[1] = exp(-8 * J / T);
+        step = 0;
+        mExact = Mexact(T);
+        m = static_cast<float>(M) / N;
+        error = abs(abs(m)-mExact);
+        while(error>tollerance ){
+            m = static_cast<float>(M) / N;
+            error = abs(abs(m)-mExact);
+            create_rand_vect(random);
+            simulate(prob,lattice, random, M, E);
+            step++;
+            }  
+        
+        T+=0.1;
+        }
 
-
-        T += 0.1;
-
-        print_lattice(lattice);
-        cout << abs(results.back()) << endl;
-    }
     auto end = std::chrono::high_resolution_clock::now();  // End timing after simulation
     std::chrono::duration<double> elapsed = end - start;  // Calculate elapsed time
-    cout << "Time taken for simulation : "<< ": " << elapsed.count() << " seconds" << endl;
+    print_lattice(lattice);
+    std::cout << elapsed.count() << std::endl;
+    std::cout<<step*N;
 
 
 
