@@ -7,6 +7,7 @@
 #include <chrono>
 #include <omp.h>
 #include <random>
+#include <array>
 
 
 
