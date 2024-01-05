@@ -13,7 +13,7 @@
 
 
 
-#define L 2000
+#define L 2500
 #define N (L*L)
 #define J 1.00
 #define IT 30
