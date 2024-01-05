@@ -9,13 +9,16 @@
 #include <queue>
 #include <map>
 #include <numeric>
-#include <random>
 #include <omp.h>
 
-#define L 1000
+
+
+#define L 2000
 #define N (L*L)
 #define J 1.00
-#define IT 20
+#define IT 30
+
+//It must be tested more extensiveley
 
 void print_lattice(std::vector <int>& lattice) {
 
@@ -195,32 +198,35 @@ void union_sets(int x, int y, std::vector<int>& parent, std::vector<int>& rank) 
         }
     }
 }
-void swendsen_wang_update(std::vector<int>& lattice, float T, std::vector<int>& parent, std::vector<int>& rank, std::mt19937& rng) {
-    std::uniform_real_distribution<float> dist(0.0, 1.0);
+
+void swendsen_wang_update(std::vector<int>& lattice, float T, std::vector<int>& parent, std::vector<int>& rank) {
     float P = 1 - exp(-2 * J / T);
 
+    // Reset parent and rank for each site
     std::fill(parent.begin(), parent.end(), 0);
     std::fill(rank.begin(), rank.end(), 0);
-    std::iota(parent.begin(), parent.end(), 0);
+    std::iota(parent.begin(), parent.end(), 0); // Set each site as its own parent initially
 
-#pragma omp parallel for schedule(static)
+    // Form clusters
+#pragma omp parallel for
     for (int i = 0; i < N; ++i) {
         int right = (i % L == L - 1) ? i - (L - 1) : i + 1;
         int down = (i + L) % N;
 
-        if (lattice[i] == lattice[right] && dist(rng) < P) {
+        if (lattice[i] == lattice[right] && static_cast<float>(rand()) / RAND_MAX < P) {
             union_sets(i, right, parent, rank);
         }
-        if (lattice[i] == lattice[down] && dist(rng) < P) {
+        if (lattice[i] == lattice[down] && static_cast<float>(rand()) / RAND_MAX < P) {
             union_sets(i, down, parent, rank);
         }
     }
 
+#pragma omp parallel for
     std::vector<int> flip_decision(N);
     for (int i = 0; i < N; ++i) {
-        flip_decision[i] = rng() % 2;
+        flip_decision[i] = rand() % 2;
     }
-
+#pragma omp parallel for
     for (int i = 0; i < N; ++i) {
         if (flip_decision[find_set(i, parent)]) {
             lattice[i] *= -1;
@@ -234,29 +240,19 @@ float simulate(float T, std::vector<int>& lattice, float& energy, int& M, std::v
     vector<float> m(1, (float)M / N);
     vector<int> t_axis(1, 0);
 
-    vector<int> parent(N), rank(N, 0);
-
-    // Initialize random number generators for each thread
-    vector<mt19937> rngs(omp_get_max_threads());
-    for (auto& rng : rngs) {
-        rng.seed(random_device{}());
-    }
-
-#pragma omp parallel for schedule(dynamic)
+    std::vector<int> parent(N), rank(N, 0);
     for (int i = 1; i < IT; ++i) {
-        int thread_id = omp_get_thread_num();
-        swendsen_wang_update(lattice, T, parent, rank, rngs[thread_id]);
+        // Pass the additional arguments to the function
+        swendsen_wang_update(lattice, T, parent, rank);
         if (i % N == 0) {
-#pragma omp critical
-            {
-                m.push_back((float)M / N);
-                energy_vec.push_back(energy);
-                t_axis.push_back(i / N);
-            }
+            m.push_back((float)M / N);
+            energy_vec.push_back(energy);
+            t_axis.push_back(i / N);
         }
     }
     return m.back();
 }
+
 float calculate_magnetization_per_site(const std::vector<int>& lattice) {
     int total_spin = std::accumulate(lattice.begin(), lattice.end(), 0);
     return static_cast<float>(total_spin) / N;
@@ -275,6 +271,9 @@ int main() {
     create_rand_vect(rand_vect);
     //print_lattice(lattice);
     auto start = chrono::high_resolution_clock::now();
+    omp_set_num_threads(omp_get_max_threads());
+
+
 
     while (T <= 0.2) {
         results.push_back(simulate(T, lattice, energy, M, rand_vect));
@@ -286,9 +285,9 @@ int main() {
     auto end = chrono::high_resolution_clock::now();
     chrono::duration<double> elapsed = end - start;
     cout << "Time taken for simulation: " << elapsed.count() << " seconds" << endl;
-    cout << "Maximum number of threads used: " << omp_get_max_threads() << endl;
+     cout << "Maximum number of threads used: " << omp_get_max_threads() << endl;
 
-    // Calculate and print the magnetization per site
+     // Calculate and print the magnetization per site
     float magnetization_per_site = calculate_magnetization_per_site(lattice);
     cout << "Magnetization per site: " << magnetization_per_site << endl;
 
