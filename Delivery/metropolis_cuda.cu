@@ -11,6 +11,32 @@ The streamlined code structure, avoiding traditional `.cuh` and `.cu` files and 
 #include <cmath>
 #include <ctime>
 
+/* 
+
+This CUDA program is designed with flexibility in mind, allowing for key parameters to be adjusted according to the specific requirements of the simulation.
+ The primary configurable parameters include:
+
+L (Lattice Size): Determines the dimensions of the lattice (N = L * L). It's important that L is a multiple of two for proper lattice structure.
+
+J (Interaction Strength): This parameter influences the interaction strength within the system, and can be modified to study various physical behaviors.
+
+NTHREADS (Number of GPU Threads): Critical for performance optimization. Choose a value that allows the GPU to efficiently manage computation.
+
+IT (Number of Iterations): Defines the total number of iterations for the simulation, crucial for ensuring the accuracy and convergence of the results.
+
+Performance and Convergence Guidelines
+
+Thread Count and Lattice Size: It's recommended that L be divisible by NTHREADS to ensure efficient workload distribution and to avoid indexing issues. 
+If you modify L, adjust NTHREADS accordingly to maintain this divisibility.
+
+Optimal Settings: The program was tested with L = 1024, IT = 2e9, and NTHREADS = 256. These settings are known to provide a high confidence of convergence in simulations.
+Adjusting for Larger Lattices: If you choose to increase L, be mindful that it might require a proportional adjustment in NTHREADS and IT depending on your GPU capabilities. 
+A larger L generally necessitates more iterations to ensure convergence, and the thread count may need to be modified to maintain optimal performance.
+
+Convergence Assurance: With L = 1024 and IT = 2e9, the program is highly likely to achieve reliable convergence, making these settings a good starting point for simulations. 
+
+*/
+
 #define L 1024
 #define N (L*L)
 #define J 1.00
