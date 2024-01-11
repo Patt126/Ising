@@ -51,7 +51,7 @@ void SwendsenWangParallel::simulate_phase_transition() {
         m =  calculate_magnetization_per_site(lattice.get_lattice());
         MagnetizationResults->push_back(abs(m)); 
         lattice.restore_random_lattice();
-        std::cout<<N<<std::endl;
+        //std::cout<<N<<std::endl;
     }
 }
 
