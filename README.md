@@ -7,7 +7,6 @@ This project implements the Ising model simulation using C++ and offers parallel
 - Serial computation with C++ with the Wolff algorithm.
 - (Hybrid) parallel computation utilizing MPI, OpenMP, for the Simulation via the  Replica Exchange method, where each replica is simulated via parallelized Swendsen-Wang Algorithm with OPneMP, and each replica is simulated as a separate MPI process.
 - Configurable parameters such as lattice size, temperature range, and number of iterations.
-- Analysis of physical properties like energy and magnetization per site.
 
 ## Prerequisites
 
