@@ -4,10 +4,10 @@ This project implements the Ising model simulation using C++ and offers parallel
 ## Features
 
 - 2D Ising Model simulation with periodic boundary conditions.
-- Serial computation with C++ with three differend algorithms, Metropolis-Hastings, Wolff and Swendesn-Wang
+- Serial computation with C++ with two differend algorithms, Metropolis-Hastings and Wolff.
 - (Hybrid) parallel computation utilizing MPI, OpenMP, and CUDA.
 - Configurable parameters such as lattice size, temperature range, and number of iterations.
-- Analysis of physical properties like total energy and magnetization.
+- Analysis of physical properties like energy and magnetization per site.
 
 ## Prerequisites
 
@@ -50,20 +50,6 @@ mpirun -np <number_of_processes> ./ising_simulation_mpi
 ```
 Replace `<number_of_processes>` with the desired number of MPI processes.
 
-## Notes on MPI Version
 
-- The MPI version of the simulation is designed for distributed systems and can be run on multiple nodes or processors.
-- Ensure MPI is correctly installed and configured on your system or computing cluster.
-- The MPI version can be combined with OpenMP to leverage multi-threading on each node in addition to distributed computing. 
-
-## Notes on CUDA Folder
-
-The CUDA folder contains three different versions. The fastest among them is named `ising_simulation`. There's another implementation that attempts to utilize shared memory, but it's not the quickest.
-
-The output of the program presents the results of the simulation, including the system's energy and magnetization at each temperature.
-
-## Hands On
-
-In the Hands On section, the same Metropolis algorithm used for the 2D Ising Simulation is employed to write parallel code. This code calculates Monte Carlo Integrals on rectangular and spherical domains in any number of dimensions.
 
 
