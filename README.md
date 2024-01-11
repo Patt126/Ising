@@ -1,5 +1,5 @@
 ## Benchmarking Strategies for Parallel 2D Ising Model Simulation     
-This project implements the Ising model simulation using C++ and offers parallel computation using MPI (for distributed systems), OpenMP (for multicore CPUs), and CUDA (for NVIDIA GPUs). It models the magnetic dipole moments of atomic "spins" on a lattice, simulating phase transitions in ferromagnetic materials.
+This project implements the Ising model simulation using C++ and offers parallel computation using MPI (for distributed memory systems), OpenMP (for multicore CPUs), and CUDA (for NVIDIA GPUs). It models the magnetic dipole moments of atomic "spins" on a lattice, simulating phase transitions in ferromagnetic materials.
 
 ## Features
 
