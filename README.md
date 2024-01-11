@@ -2,10 +2,10 @@
 This project implements the Ising model simulation using C++ and offers parallel computation using MPI (for distributed memory systems), OpenMP (for multicore CPUs), and CUDA (for NVIDIA GPUs). It models the magnetic dipole moments of atomic "spins" on a lattice, simulating phase transitions in ferromagnetic materials.
 
 ## Features
+2D Ising Model simulation with periodic boundary conditions.
 
-- 2D Ising Model simulation with periodic boundary conditions.
-- Serial computation with C++ with two differend algorithms, Metropolis-Hastings and Wolff.
-- (Hybrid) parallel computation utilizing MPI, OpenMP, and CUDA.
+- Serial computation with C++ with the Wolff algorithm.
+- (Hybrid) parallel computation utilizing MPI, OpenMP, for the Simulation via the  Replica Exchange method, where each replica is simulated via parallelized Swendsen-Wang Algorithm with OPneMP, and each replica is simulated as a separate MPI process.
 - Configurable parameters such as lattice size, temperature range, and number of iterations.
 - Analysis of physical properties like energy and magnetization per site.
 
@@ -18,37 +18,18 @@ This project implements the Ising model simulation using C++ and offers parallel
 
 ## Building the Simulation
 
-**For CPU-based Parallelization with OpenMP:**
-```bash
-g++ -std=c++17 -fopenmp ising_simulation.cpp -o ising_simulation
-```
-
 **For GPU-accelerated Parallelization with CUDA:**
 ```bash
-nvcc -std=c++17 ising_simulation.cu -o ising_simulation
-```
-
-**For Distributed System Parallelization with MPI:**
-```bash
-mpicxx -std=c++17 -fopenmp ising_simulation_mpi.cpp -o ising_simulation_mpi
-```
-or
-```bash
-mpic++ -std=c++17 -fopenmp ising_simulation_mpi.cpp -o ising_simulation_mpi
+nvcc -std=c++17 metropolis_GPU.cu -o metropolis_GPU
 ```
 
 ## Running the Simulation
 
-**For OpenMP and CUDA Versions:**
+**For CUDA Version:**
 ```bash
-./ising_simulation
+./metropolis_GPU
 ```
 
-**For the MPI Version:**
-```bash
-mpirun -np <number_of_processes> ./ising_simulation_mpi
-```
-Replace `<number_of_processes>` with the desired number of MPI processes.
 
 
 
