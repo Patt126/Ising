@@ -52,4 +52,10 @@ Replace `<number_of_processes>` with the desired number of MPI processes.
 
 
 
+## Project Structure Explanation
+
+The structure of this CUDA program is specifically designed for development on cloud-based platforms like Google Colab and Kaggle. These platforms were chosen for their suitability in handling CUDA programming, especially for those without access to local CUDA hardware. The streamlined code structure, avoiding traditional `.cuh` and `.cu` files and `CMake`, is more practical for these environments, focusing on ease of use and efficiency in building and executing the program.
+
+
+
 
