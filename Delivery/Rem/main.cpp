@@ -19,7 +19,8 @@ int main(int argc, char* argv[]) {
     int L ;
     int L_MAX = 1024;   
 
-
+    MPI_Init(&argc, &argv);
+    
     for(L = 64; L <= L_MAX; L *= 2){
         int IT = 800;
         std::cout<<"Simulation start for L = "<<L<<std::endl;
